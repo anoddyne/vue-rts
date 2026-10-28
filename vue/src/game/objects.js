@@ -17,23 +17,35 @@ export const BUILDING_TYPES = {
   BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55' },
 }
 
+// Группы игроков. Цвет обводки выделяет группу на карте, имя показывается в панели выбора.
+export const GROUP_COLORS = {
+  1: { unit: '#493618', building: '#3b2a17' },
+  2: { unit: '#8f2f21', building: '#6f2419' },
+  3: { unit: '#4c3a86', building: '#3a2c68' },
+}
+
+export const getGroupStyle = (group) => GROUP_COLORS[group] ?? GROUP_COLORS[1]
+export const getGroupName = (group) => `Группа ${group}`
+
 let nextId = 1
 
-export const createUnit = (type, x, y) => ({
+export const createUnit = (type, x, y, group = 1) => ({
   id: nextId++,
   kind: OBJECT_KINDS.UNIT,
   type,
   x,
   y,
+  group,
   health: type.maxHealth,
 })
 
-export const createBuilding = (type, x, y) => ({
+export const createBuilding = (type, x, y, group = 1) => ({
   id: nextId++,
   kind: OBJECT_KINDS.BUILDING,
   type,
   x,
   y,
+  group,
   health: type.maxHealth,
 })
 
