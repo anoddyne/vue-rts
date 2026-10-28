@@ -26,7 +26,6 @@ export const createUnit = (type, x, y) => ({
   x,
   y,
   health: type.maxHealth,
-  target: null,
 })
 
 export const createBuilding = (type, x, y) => ({
@@ -49,27 +48,34 @@ const overlapsBuilding = (unit, x, y, building) => {
   return Math.hypot(x - nearestX, y - nearestY) < unit.type.radius
 }
 
-// Перемещает юнита к цели на speed * delta мировых единиц.
-// Если следующий шаг заходит в здание, юнит останавливается.
-export const moveUnit = (unit, delta, buildings) => {
-  if (!unit.target) return
+export const MOVE_RESULT = {
+  MOVING: 'moving',
+  DONE: 'done',
+  BLOCKED: 'blocked',
+}
 
-  const dx = unit.target.x - unit.x
-  const dy = unit.target.y - unit.y
+// Шаг юнита к точке на speed * delta мировых единиц.
+// Координаты меняются на месте. Если шаг заходит в здание, юнит остаётся где был.
+export const stepToward = (unit, target, delta, buildings) => {
+  const dx = target.x - unit.x
+  const dy = target.y - unit.y
   const distance = Math.hypot(dx, dy)
+  if (distance === 0) return { status: MOVE_RESULT.DONE, remaining: delta }
+
   const step = unit.type.speed * delta
-  const next = distance <= step
-    ? unit.target
-    : { x: unit.x + dx / distance * step, y: unit.y + dy / distance * step }
+  const reached = distance <= step
+  const next = reached
+    ? target
+    : { x: unit.x + (dx / distance) * step, y: unit.y + (dy / distance) * step }
 
   if (buildings.some(building => overlapsBuilding(unit, next.x, next.y, building))) {
-    unit.target = null
-    return
+    return { status: MOVE_RESULT.BLOCKED, remaining: 0 }
   }
 
   unit.x = next.x
   unit.y = next.y
-  if (next === unit.target) unit.target = null
+  if (!reached) return { status: MOVE_RESULT.MOVING, remaining: 0 }
+  return { status: MOVE_RESULT.DONE, remaining: Math.max(0, delta - distance / unit.type.speed) }
 }
 
 // Глубина объекта для изометрии по его центру: чем больше x + y, тем ближе объект к зрителю

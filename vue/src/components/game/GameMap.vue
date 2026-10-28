@@ -98,7 +98,10 @@ const toSvgPoint = (clientX, clientY) => {
 const onContextMenu = (event) => {
   const point = toSvgPoint(event.clientX, event.clientY)
   if (!point) return
-  emit('command', clampToMap(screenToWorld(point.x, point.y, map.value.gridSize), map.value))
+  emit('command', {
+    ...clampToMap(screenToWorld(point.x, point.y, map.value.gridSize), map.value),
+    queue: event.shiftKey,
+  })
 }
 
 const onWheel = (event) => {

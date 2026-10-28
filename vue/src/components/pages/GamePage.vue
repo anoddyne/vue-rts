@@ -20,6 +20,7 @@
             :unit="object"
             :grid-size="map.gridSize"
             :selected="isSelected(object.id)"
+            :waypoints="waypointsById[object.id] || []"
             @select="event => select(object.id, event)"
         />
       </template>
@@ -41,6 +42,13 @@ const store = useStore()
 const map = computed(() => store.getters['game/getMap'])
 const objects = computed(() => store.getters['game/getDrawOrder'])
 const selected = computed(() => store.getters['game/getSelected'])
+const waypointsById = computed(() => {
+  const points = {}
+  store.getters['game/getElements'].forEach(element => {
+    points[element.id] = store.getters['game/getWaypoints'](element.id)
+  })
+  return points
+})
 const isSelected = (id) => store.getters['game/isSelected'](id)
 
 // Shift+клик — добавить/убрать объект из выбора; Shift+клик по фону выбор не сбрасывает

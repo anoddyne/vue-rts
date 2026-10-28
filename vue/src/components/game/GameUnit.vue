@@ -1,14 +1,25 @@
 <template>
   <g>
+    <polyline
+        v-if="marks.length"
+        :points="routePoints"
+        fill="none"
+        stroke="#ffe08a"
+        stroke-width="1.5"
+        stroke-dasharray="5 4"
+        pointer-events="none"
+    />
     <ellipse
-        v-if="target"
-        :cx="target.x"
-        :cy="target.y"
+        v-for="(mark, index) in marks"
+        :key="mark.id"
+        :cx="mark.x"
+        :cy="mark.y"
         rx="7"
         ry="4"
         fill="none"
-        stroke="#ffe08a"
-        stroke-width="2"
+        :stroke="index === 0 ? '#ffe08a' : '#d7c48a'"
+        :stroke-width="index === 0 ? 2 : 1.5"
+        :stroke-dasharray="index === 0 ? null : '3 2'"
         pointer-events="none"
     />
     <g
@@ -49,11 +60,18 @@ const props = defineProps({
   unit: { type: Object, required: true },
   gridSize: { type: Number, required: true },
   selected: { type: Boolean, default: false },
+  waypoints: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['select'])
 
 const position = computed(() => worldToScreen(props.unit.x, props.unit.y, props.gridSize))
-const target = computed(() => props.unit.target && worldToScreen(props.unit.target.x, props.unit.target.y, props.gridSize))
+const marks = computed(() => props.waypoints.map(point => ({
+  id: point.id,
+  ...worldToScreen(point.x, point.y, props.gridSize),
+})))
+const routePoints = computed(() => [position.value, ...marks.value]
+  .map(point => `${point.x},${point.y}`)
+  .join(' '))
 </script>
 
 <style scoped lang="scss">
