@@ -49,7 +49,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import {
   worldToScreen,
@@ -60,7 +60,7 @@ import {
   getGridLines,
 } from '@/game/map.js'
 
-const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel'])
+const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause'])
 
 const CAMERA_SPEED = 600
 const EDGE_SIZE = 16
@@ -88,6 +88,13 @@ const viewBox = computed(() => {
   const height = projected.value.height / zoom.value
   return `${cameraX.value - width / 2} ${cameraY.value - height / 2} ${width} ${height}`
 })
+
+// При запуске сценария (и «Заново») камера встаёт на базу группы 1
+const homeView = computed(() => store.getters['game/getHomeView'])
+watch(homeView, (view) => {
+  cameraX.value = view.x
+  cameraY.value = view.y
+}, { immediate: true })
 
 // Клиентские координаты мыши → координаты внутри SVG (учитывает камеру и положение на странице)
 const toSvgPoint = (clientX, clientY) => {
@@ -195,13 +202,19 @@ const onClickCapture = (event) => {
   suppressClick = false
 }
 
-// Клавиатура: WASD/стрелки — камера, Esc — снять выбор
+// Клавиатура: WASD/стрелки — камера, Esc — снять выбор, пробел — пауза
 const pressedKeys = new Set()
 
 const onKeyDown = (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return
   if (event.code === 'Escape') emit('cancel')
+  // Пробел — пауза; если фокус на юните, его обработчик перехватит нажатие раньше
+  if (event.code === 'Space') {
+    if (!event.repeat) emit('toggle-pause')
+    event.preventDefault()
+    return
+  }
   if (!CAMERA_KEYS.includes(event.code)) return
   event.preventDefault()
   pressedKeys.add(event.code)

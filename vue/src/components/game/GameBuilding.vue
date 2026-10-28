@@ -18,6 +18,7 @@
 <script setup>
 import { computed } from 'vue'
 import { worldToScreen } from '@/game/map.js'
+import { getGroupStyle } from '@/game/objects.js'
 
 const props = defineProps({
   building: { type: Object, required: true },
@@ -26,7 +27,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['select'])
 
-const stroke = computed(() => props.selected ? '#ffe08a' : '#3b2a17')
+const stroke = computed(() => props.selected ? '#ffe08a' : getGroupStyle(props.building.group).building)
 
 // Квадратное основание в мире → ромб на экране; стены поднимаем на высоту здания.
 // На экране: north — верхний угол ромба, east — правый, south — нижний, west — левый.

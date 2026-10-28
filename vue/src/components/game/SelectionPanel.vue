@@ -4,6 +4,7 @@
       <template v-if="!objects.length">Ничего не выбрано</template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
+        <div>{{ getGroupName(objects[0].group) }}</div>
         <div>Здоровье: {{ objects[0].health }} / {{ objects[0].type.maxHealth }}</div>
         <div v-if="objects[0].type.speed">Скорость: {{ objects[0].type.speed }}</div>
         <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
@@ -17,7 +18,7 @@
       ЛКМ — выбрать, Shift+ЛКМ — добавить/убрать из выбора<br>
       Рамка — выбрать группу, Shift+рамка — добавить группу к выбору<br>
       ПКМ — идти (всем выбранным), Shift+ПКМ — следующая точка, Esc — снять выбор<br>
-      Камера: WASD / стрелки / курсор у края / зажатое колесо, масштаб — колесо мыши<br>
+      Пробел — пауза. Камера: WASD / стрелки / курсор у края / зажатое колесо, масштаб — колесо мыши<br>
       <RouterLink :to="{ name: $routes.INDEX }">В меню</RouterLink>
     </div>
   </div>
@@ -25,6 +26,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { getGroupName } from '@/game/objects.js'
 
 const props = defineProps({
   objects: { type: Array, required: true },

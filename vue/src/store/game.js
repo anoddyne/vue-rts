@@ -1,42 +1,39 @@
-import { createMap, clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
-import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding, isUnit, isBuilding, getDepth } from '@/game/objects.js'
+import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
+import { isUnit, isBuilding, getDepth } from '@/game/objects.js'
 import { issueMoveOrders, nextFrame } from '@/game/events.js'
+import { createScenarioState, getScenario } from '@/game/scenarios.js'
 
 const MUTATIONS = {
   SET_SELECTED: 'SET_SELECTED',
   SET_EVENTS: 'SET_EVENTS',
+  SET_PAUSED: 'SET_PAUSED',
+  SET_GAME_OVER: 'SET_GAME_OVER',
+  START: 'START',
   TICK: 'TICK',
 }
 
 const FORMATION_SPACING = 24
 
+// Конец игры: у одной группы остались все объекты, а остальные группы исчезли.
+// Проверяется после каждого кадра — сработает, как только в игре появятся смерти объектов.
+const detectGameOver = (state) => {
+  if (state.startedGroups < 2 || state.gameOver) return null
+  const alive = new Set(state.elements.map(element => element.group))
+  if (alive.size > 1) return null
+  return { winner: alive.size ? [...alive][0] : null }
+}
+
 export default {
   namespaced: true,
   state () {
-    return {
-      map: createMap(3200, 2400, 40),
-      // Элементы карты — текущая действительность: позиции, типы, здоровье.
-      elements: [
-        createBuilding(BUILDING_TYPES.TOWN_CENTER, -200, -200),
-        createBuilding(BUILDING_TYPES.HOUSE, -440, -120),
-        createBuilding(BUILDING_TYPES.BARRACKS, -160, 120),
-        createUnit(UNIT_TYPES.VILLAGER, 40, -80),
-        createUnit(UNIT_TYPES.VILLAGER, 80, -40),
-        createUnit(UNIT_TYPES.VILLAGER, 120, 0),
-        createUnit(UNIT_TYPES.MILITIA, 80, 120),
-        createUnit(UNIT_TYPES.MILITIA, 120, 160),
-        createUnit(UNIT_TYPES.SCOUT, 240, -40),
-      ],
-      // Текущие события. Цепочка одного юнита связана общим linkId и идёт по order.
-      events: [],
-      selectedIds: [],
-    }
+    return createScenarioState('sandbox')
   },
   getters: {
     getMap: (state) => state.map,
     getElements: (state) => state.elements,
     getEvents: (state) => state.events,
     getUnits: (state) => state.elements.filter(isUnit),
+    getBuildings: (state) => state.elements.filter(isBuilding),
     getBuildings: (state) => state.elements.filter(isBuilding),
     // Порядок отрисовки для изометрии: дальние объекты раньше, ближние поверх
     getDrawOrder: (state) => [...state.elements].sort((a, b) => getDepth(a) - getDepth(b)),
@@ -46,6 +43,11 @@ export default {
     getWaypoints: (state) => (elementId) => state.events
       .filter(event => event.elementId === elementId)
       .sort((a, b) => a.order - b.order),
+    isPaused: (state) => state.paused,
+    getGameOver: (state) => state.gameOver,
+    getScenarioId: (state) => state.scenarioId,
+    // Куда встаёт камера при запуске сценария
+    getHomeView: (state) => state.homeView,
   },
   mutations: {
     [MUTATIONS.SET_SELECTED]: (state, ids) => {
@@ -54,11 +56,29 @@ export default {
     [MUTATIONS.SET_EVENTS]: (state, events) => {
       state.events = events
     },
+    [MUTATIONS.SET_PAUSED]: (state, paused) => {
+      state.paused = paused
+    },
+    [MUTATIONS.SET_GAME_OVER]: (state, gameOver) => {
+      state.gameOver = gameOver
+    },
+    [MUTATIONS.START]: (state, fresh) => {
+      Object.assign(state, fresh)
+    },
     [MUTATIONS.TICK]: (state, delta) => {
       state.events = nextFrame(state.elements, state.events, delta)
+      state.gameOver = detectGameOver(state) ?? state.gameOver
     },
   },
   actions: {
+    // Запуск подготовленного сценария: мир пересоздаётся, пауза и конец игры сбрасываются
+    start: (store, id) => {
+      if (!getScenario(id)) return
+      store.commit(MUTATIONS.START, createScenarioState(id))
+    },
+    togglePause: (store) => {
+      store.commit(MUTATIONS.SET_PAUSED, !store.state.paused)
+    },
     // additive — Shift: клик по выбранному убирает его из выбора, по невыбранному — добавляет
     select: (store, { id, additive }) => {
       if (!additive) {
@@ -89,6 +109,7 @@ export default {
     },
     // Приказ идти. queue — дописать точку в цепочку (Shift), иначе заменить текущие события.
     moveSelected: (store, { x, y, queue = false }) => {
+      if (store.state.gameOver) return
       const { map } = store.state
       const units = store.getters.getSelected.filter(isUnit)
       if (!units.length) return
@@ -112,7 +133,9 @@ export default {
 
       store.commit(MUTATIONS.SET_EVENTS, issueMoveOrders(store.state.events, orders, queue))
     },
+    // Пауза и конец игры останавливают мир; камера при этом продолжает работать
     tick: (store, delta) => {
+      if (store.state.paused || store.state.gameOver) return
       store.commit(MUTATIONS.TICK, delta)
     },
   },

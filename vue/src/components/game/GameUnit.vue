@@ -45,7 +45,7 @@
           :cy="-unit.type.radius"
           :r="unit.type.radius"
           :fill="unit.type.color"
-          stroke="#493618"
+          :stroke="groupStroke"
           stroke-width="2"
       />
     </g>
@@ -55,6 +55,7 @@
 <script setup>
 import { computed } from 'vue'
 import { worldToScreen } from '@/game/map.js'
+import { getGroupStyle } from '@/game/objects.js'
 
 const props = defineProps({
   unit: { type: Object, required: true },
@@ -65,6 +66,7 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const position = computed(() => worldToScreen(props.unit.x, props.unit.y, props.gridSize))
+const groupStroke = computed(() => getGroupStyle(props.unit.group).unit)
 const marks = computed(() => props.waypoints.map(point => ({
   id: point.id,
   ...worldToScreen(point.x, point.y, props.gridSize),
