@@ -13,14 +13,14 @@
             :building="object"
             :grid-size="map.gridSize"
             :selected="isSelected(object.id)"
-            @select="select(object.id)"
+            @select="event => select(object.id, event)"
         />
         <GameUnit
             v-else
             :unit="object"
             :grid-size="map.gridSize"
             :selected="isSelected(object.id)"
-            @select="select(object.id)"
+            @select="event => select(object.id, event)"
         />
       </template>
     </GameMap>
@@ -43,8 +43,12 @@ const objects = computed(() => store.getters['game/getDrawOrder'])
 const selected = computed(() => store.getters['game/getSelected'])
 const isSelected = (id) => store.getters['game/isSelected'](id)
 
-const select = (id) => store.dispatch('game/select', id)
-const clearSelection = () => store.dispatch('game/clearSelection')
+// Shift+клик — добавить/убрать объект из выбора; Shift+клик по фону выбор не сбрасывает
+const select = (id, event) => store.dispatch('game/select', { id, additive: Boolean(event?.shiftKey) })
+const clearSelection = (event) => {
+  if (event?.shiftKey) return
+  store.dispatch('game/clearSelection')
+}
 </script>
 
 <style scoped lang="scss">
