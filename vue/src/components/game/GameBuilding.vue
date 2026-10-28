@@ -5,7 +5,7 @@
       :aria-label="building.type.name"
       :aria-pressed="selected"
       tabindex="0"
-      @click.stop="emit('select')"
+      @click.stop="emit('select', $event)"
       @keydown.enter.stop.prevent="emit('select')"
       @keydown.space.stop.prevent="emit('select')"
   >
