@@ -59,14 +59,23 @@ export default {
     },
   },
   actions: {
-    select: (store, id) => {
-      store.commit(MUTATIONS.SET_SELECTED, [id])
+    // additive — Shift: клик по выбранному убирает его из выбора, по невыбранному — добавляет
+    select: (store, { id, additive }) => {
+      if (!additive) {
+        store.commit(MUTATIONS.SET_SELECTED, [id])
+        return
+      }
+      const selected = store.state.selectedIds
+      store.commit(MUTATIONS.SET_SELECTED, selected.includes(id)
+        ? selected.filter(selectedId => selectedId !== id)
+        : [...selected, id])
     },
     clearSelection: (store) => {
       store.commit(MUTATIONS.SET_SELECTED, [])
     },
-    // Рамка приходит в экранных (изометрических) координатах SVG, рамкой выбираются только юниты
-    selectArea: (store, { left, top, right, bottom }) => {
+    // Рамка приходит в экранных (изометрических) координатах SVG, рамкой выбираются только юниты.
+    // additive — Shift: рамка добавляет юнитов к уже выбранным
+    selectArea: (store, { left, top, right, bottom, additive }) => {
       const { gridSize } = store.state.map
       const ids = store.getters.getUnits
         .filter(unit => {
@@ -74,7 +83,9 @@ export default {
           return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
         })
         .map(unit => unit.id)
-      store.commit(MUTATIONS.SET_SELECTED, ids)
+      store.commit(MUTATIONS.SET_SELECTED, additive
+        ? [...new Set([...store.state.selectedIds, ...ids])]
+        : ids)
     },
     // Приказ идти. queue — дописать точку в цепочку (Shift), иначе заменить текущие события.
     moveSelected: (store, { x, y, queue = false }) => {

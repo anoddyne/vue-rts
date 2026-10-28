@@ -3,7 +3,7 @@
       class="game-map"
       @mousedown="onMouseDown"
       @click.capture="onClickCapture"
-      @click="emit('background-click')"
+      @click="emit('background-click', $event)"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
       @mouseleave="mouse = null"
@@ -177,6 +177,7 @@ const onMouseUp = (event) => {
         top: Math.min(first.y, last.y),
         right: Math.max(first.x, last.x),
         bottom: Math.max(first.y, last.y),
+        additive: event.shiftKey,
       })
     }
     // Блокирует click после рамки, чтобы он не сбросил выбор
