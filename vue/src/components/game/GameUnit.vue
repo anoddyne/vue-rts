@@ -44,10 +44,11 @@
       <circle
           :cy="-unit.type.radius"
           :r="unit.type.radius"
-          :fill="unit.type.color"
-          :stroke="groupStroke"
-          stroke-width="2"
+          :fill="groupColor"
+          stroke="#1b2719"
+          stroke-width="1.5"
       />
+      <circle :cy="-unit.type.radius" :r="unit.type.radius * 0.5" :fill="unit.type.color" />
     </g>
   </g>
 </template>
@@ -55,7 +56,7 @@
 <script setup>
 import { computed } from 'vue'
 import { worldToScreen } from '@/game/map.js'
-import { getGroupStyle } from '@/game/objects.js'
+import { getGroupColor } from '@/game/objects.js'
 
 const props = defineProps({
   unit: { type: Object, required: true },
@@ -66,7 +67,8 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const position = computed(() => worldToScreen(props.unit.x, props.unit.y, props.gridSize))
-const groupStroke = computed(() => getGroupStyle(props.unit.group).unit)
+// Заливка — цвет группы, точка в центре — цвет типа юнита
+const groupColor = computed(() => getGroupColor(props.unit.group))
 const marks = computed(() => props.waypoints.map(point => ({
   id: point.id,
   ...worldToScreen(point.x, point.y, props.gridSize),

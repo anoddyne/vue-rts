@@ -7,7 +7,7 @@ export const SCENARIOS = [
   {
     id: 'sandbox',
     name: 'Песочница',
-    description: 'Одна группа, свободное перемещение по карте.',
+    description: 'Своя база и две вражеские группы рядом.',
     objects: [
       ['building', 'TOWN_CENTER', -200, -200, 1],
       ['building', 'HOUSE', -440, -120, 1],
@@ -18,6 +18,21 @@ export const SCENARIOS = [
       ['unit', 'MILITIA', 80, 120, 1],
       ['unit', 'MILITIA', 120, 160, 1],
       ['unit', 'SCOUT', 240, -40, 1],
+      // Группа 2 — справа
+      ['building', 'TOWN_CENTER', 700, -300, 2],
+      ['building', 'BARRACKS', 760, 0, 2],
+      ['unit', 'VILLAGER', 520, -320, 2],
+      ['unit', 'VILLAGER', 520, -260, 2],
+      ['unit', 'MILITIA', 560, -80, 2],
+      ['unit', 'MILITIA', 560, -20, 2],
+      ['unit', 'MILITIA', 600, 40, 2],
+      // Группа 3 — снизу
+      ['building', 'HOUSE', -200, 600, 3],
+      ['building', 'BARRACKS', 80, 640, 3],
+      ['unit', 'MILITIA', -60, 480, 3],
+      ['unit', 'MILITIA', 0, 480, 3],
+      ['unit', 'SCOUT', 60, 480, 3],
+      ['unit', 'SCOUT', 120, 480, 3],
     ],
   },
   {
@@ -69,6 +84,36 @@ export const SCENARIOS = [
     ],
   },
 ]
+
+// Шесть групп по кругу: у каждой городской центр, казармы и отряд из шести юнитов
+const createCircleOfGroups = (count, radius) => Array.from({ length: count }, (_, index) => {
+  const group = index + 1
+  const angle = (index / count) * 2 * Math.PI
+  const x = Math.round(Math.cos(angle) * radius)
+  const y = Math.round(Math.sin(angle) * radius)
+  const toCenter = { x: -Math.cos(angle), y: -Math.sin(angle) }
+  const at = (distance, side) => [
+    Math.round(x + toCenter.x * distance - toCenter.y * side),
+    Math.round(y + toCenter.y * distance + toCenter.x * side),
+  ]
+  return [
+    ['building', 'TOWN_CENTER', x, y, group],
+    ['building', 'BARRACKS', ...at(0, 200), group],
+    ['unit', 'VILLAGER', ...at(140, -40), group],
+    ['unit', 'VILLAGER', ...at(140, 0), group],
+    ['unit', 'MILITIA', ...at(140, 40), group],
+    ['unit', 'MILITIA', ...at(180, -40), group],
+    ['unit', 'MILITIA', ...at(180, 0), group],
+    ['unit', 'SCOUT', ...at(180, 40), group],
+  ]
+}).flat()
+
+SCENARIOS.push({
+  id: 'sixway',
+  name: 'Шесть групп',
+  description: 'Шесть групп по кругу, у каждой база и отряд.',
+  objects: createCircleOfGroups(6, 900),
+})
 
 export const getScenario = (id) => SCENARIOS.find(scenario => scenario.id === id)
 

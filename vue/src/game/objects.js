@@ -10,21 +10,19 @@ export const UNIT_TYPES = {
   SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, color: '#8ab4e8' },
 }
 
-// size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях
+// size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях,
+// spawns — ключи UNIT_TYPES, которые можно создать в этом здании
 export const BUILDING_TYPES = {
-  TOWN_CENTER: { name: 'Городской центр', size: 160, height: 48, maxHealth: 2400, color: '#b08a5a' },
-  HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678' },
-  BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55' },
+  TOWN_CENTER: { name: 'Городской центр', size: 160, height: 48, maxHealth: 2400, color: '#b08a5a', spawns: ['VILLAGER'] },
+  HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678', spawns: [] },
+  BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
 }
 
-// Группы игроков. Цвет обводки выделяет группу на карте, имя показывается в панели выбора.
-export const GROUP_COLORS = {
-  1: { unit: '#493618', building: '#3b2a17' },
-  2: { unit: '#8f2f21', building: '#6f2419' },
-  3: { unit: '#4c3a86', building: '#3a2c68' },
-}
+// Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
+// Первые группы берут цвета из списка, следующие — оттенок по номеру группы.
+export const GROUP_COLORS = ['#3d7be0', '#d6453a', '#8e5ad6', '#3fae5a', '#e0912f', '#2fb5b5', '#d64f9c', '#c9c23a']
 
-export const getGroupStyle = (group) => GROUP_COLORS[group] ?? GROUP_COLORS[1]
+export const getGroupColor = (group) => GROUP_COLORS[group - 1] ?? `hsl(${(group * 137) % 360}, 65%, 55%)`
 export const getGroupName = (group) => `Группа ${group}`
 
 let nextId = 1
@@ -62,6 +60,34 @@ export const circleOverlapsBuilding = (x, y, radius, building) => {
 
 // Задевает ли круг юнита в точке (x, y) квадратное основание здания
 const overlapsBuilding = (unit, x, y, building) => circleOverlapsBuilding(x, y, unit.type.radius, building)
+
+// Шаг между кольцами поиска места и число точек на кольце
+const SPAWN_GAP = 6
+const SPAWN_POINTS_PER_RING = 12
+const SPAWN_MAX_RINGS = 8
+
+// Свободная точка рядом со зданием для нового юнита: не в здании, не на другом юните, внутри карты.
+// Кольца расходятся от основания здания; поиск начинается с угла, ближнего к зрителю (+x, +y).
+export const findSpawnPoint = (building, unitType, elements, map) => {
+  const radius = unitType.radius
+  const buildings = elements.filter(isBuilding)
+  const units = elements.filter(isUnit)
+  const isFree = (x, y) => Math.abs(x) <= map.width / 2 && Math.abs(y) <= map.height / 2
+    && !buildings.some(other => circleOverlapsBuilding(x, y, radius + 1, other))
+    && !units.some(unit => Math.hypot(unit.x - x, unit.y - y) < unit.type.radius + radius + 2)
+
+  for (let ring = 0; ring < SPAWN_MAX_RINGS; ring++) {
+    const distance = building.type.size / 2 * Math.SQRT2 + radius + SPAWN_GAP + ring * (radius * 2 + SPAWN_GAP)
+    for (let index = 0; index < SPAWN_POINTS_PER_RING; index++) {
+      const step = Math.ceil(index / 2) * (index % 2 ? 1 : -1)
+      const angle = Math.PI / 4 + step * (2 * Math.PI / SPAWN_POINTS_PER_RING)
+      const x = building.x + Math.cos(angle) * distance
+      const y = building.y + Math.sin(angle) * distance
+      if (isFree(x, y)) return { x, y }
+    }
+  }
+  return null
+}
 
 export const MOVE_RESULT = {
   MOVING: 'moving',
