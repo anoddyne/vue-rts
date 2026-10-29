@@ -40,7 +40,7 @@
         </div>
       </div>
     </div>
-    <SelectionPanel :objects="selected" />
+    <SelectionPanel :objects="selected" @spawn="payload => store.dispatch('game/spawn', payload)" />
   </div>
 </template>
 
