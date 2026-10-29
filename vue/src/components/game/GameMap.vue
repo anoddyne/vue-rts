@@ -105,9 +105,12 @@ const toSvgPoint = (clientX, clientY) => {
 const onContextMenu = (event) => {
   const point = toSvgPoint(event.clientX, event.clientY)
   if (!point) return
+  // ПКМ по юниту или зданию передаёт его id как цель приказа
+  const element = event.target.closest('[data-element-id]')
   emit('command', {
     ...clampToMap(screenToWorld(point.x, point.y, map.value.gridSize), map.value),
     queue: event.shiftKey,
+    targetId: element ? Number(element.dataset.elementId) : null,
   })
 }
 

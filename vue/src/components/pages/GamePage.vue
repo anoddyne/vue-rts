@@ -5,7 +5,7 @@
         @background-click="clearSelection"
         @cancel="clearSelection"
         @select-area="area => store.dispatch('game/selectArea', area)"
-        @command="point => store.dispatch('game/moveSelected', point)"
+        @command="point => store.dispatch('game/commandSelected', point)"
         @toggle-pause="togglePause"
     >
       <template v-for="object in objects" :key="object.id">
@@ -40,7 +40,7 @@
         </div>
       </div>
     </div>
-    <SelectionPanel :objects="selected" />
+    <SelectionPanel :objects="selected" @spawn="payload => store.dispatch('game/spawn', payload)" />
   </div>
 </template>
 
