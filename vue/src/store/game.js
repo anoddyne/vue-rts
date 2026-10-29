@@ -1,11 +1,12 @@
 import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
-import { isUnit, isBuilding, getDepth } from '@/game/objects.js'
-import { issueMoveOrders, nextFrame } from '@/game/events.js'
+import { UNIT_TYPES, isUnit, isBuilding, getDepth, createUnit, findSpawnPoint } from '@/game/objects.js'
+import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 
 const MUTATIONS = {
   SET_SELECTED: 'SET_SELECTED',
   SET_EVENTS: 'SET_EVENTS',
+  ADD_ELEMENT: 'ADD_ELEMENT',
   SET_PAUSED: 'SET_PAUSED',
   SET_GAME_OVER: 'SET_GAME_OVER',
   START: 'START',
@@ -41,7 +42,7 @@ export default {
     isSelected: (state) => (id) => state.selectedIds.includes(id),
     // Точки цепочки юнита в порядке выполнения
     getWaypoints: (state) => (elementId) => state.events
-      .filter(event => event.elementId === elementId)
+      .filter(event => event.elementId === elementId && event.type === EVENT_TYPES.MOVE)
       .sort((a, b) => a.order - b.order),
     isPaused: (state) => state.paused,
     getGameOver: (state) => state.gameOver,
@@ -56,6 +57,9 @@ export default {
     [MUTATIONS.SET_EVENTS]: (state, events) => {
       state.events = events
     },
+    [MUTATIONS.ADD_ELEMENT]: (state, element) => {
+      state.elements.push(element)
+    },
     [MUTATIONS.SET_PAUSED]: (state, paused) => {
       state.paused = paused
     },
@@ -66,7 +70,15 @@ export default {
       Object.assign(state, fresh)
     },
     [MUTATIONS.TICK]: (state, delta) => {
+      state.elements.forEach(element => {
+        if (isUnit(element)) element.attackCooldown = Math.max(0, element.attackCooldown - delta)
+      })
       state.events = nextFrame(state.elements, state.events, delta, state.map)
+      // Объекты с нулевым здоровьем убираются с карты и из выбора
+      if (state.elements.some(element => element.health <= 0)) {
+        state.elements = state.elements.filter(element => element.health > 0)
+        state.selectedIds = state.selectedIds.filter(id => state.elements.some(element => element.id === id))
+      }
       state.gameOver = detectGameOver(state) ?? state.gameOver
     },
   },
@@ -107,12 +119,18 @@ export default {
         ? [...new Set([...store.state.selectedIds, ...ids])]
         : ids)
     },
-    // Приказ идти. queue — дописать точку в цепочку (Shift), иначе заменить текущие события.
-    moveSelected: (store, { x, y, queue = false }) => {
+    // Приказ выбранным юнитам по ПКМ. queue — дописать в цепочку (Shift), иначе заменить текущие события.
+    // targetId — ПКМ по объекту: юниты других групп атакуют его, юниты его группы идут в точку (x, y).
+    commandSelected: (store, { x, y, queue = false, targetId = null }) => {
       if (store.state.gameOver) return
       const { map } = store.state
-      const units = store.getters.getSelected.filter(isUnit)
-      if (!units.length) return
+      const selected = store.getters.getSelected.filter(isUnit)
+      if (!selected.length) return
+
+      const target = targetId !== null && store.state.elements.find(element => element.id === targetId)
+      const attackers = target ? selected.filter(unit => unit.group !== target.group) : []
+      const units = selected.filter(unit => !attackers.includes(unit))
+      const attackOrders = attackers.map(unit => ({ elementId: unit.id, targetId: target.id }))
 
       const destination = worldToScreen(x, y, map.gridSize)
       const columns = Math.ceil(Math.sqrt(units.length))
@@ -122,16 +140,27 @@ export default {
         const row = Math.floor(index / columns)
         const countInRow = Math.min(columns, units.length - row * columns)
         const column = index % columns
-        const target = screenToWorld(
+        const formationPoint = screenToWorld(
           destination.x + (column - (countInRow - 1) / 2) * FORMATION_SPACING,
           destination.y + (row - (rows - 1) / 2) * FORMATION_SPACING,
           map.gridSize,
         )
-        const point = clampToMap(target, map)
+        const point = clampToMap(formationPoint, map)
         return { elementId: unit.id, x: point.x, y: point.y }
       })
 
-      store.commit(MUTATIONS.SET_EVENTS, issueMoveOrders(store.state.events, orders, queue))
+      store.commit(MUTATIONS.SET_EVENTS, issueOrders(store.state.events, [...attackOrders, ...orders], queue))
+    },
+    // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
+    // Тип юнита должен быть в списке spawns здания; если рядом нет свободного места, юнит не создаётся.
+    spawn: (store, { buildingId, unitType }) => {
+      if (store.state.gameOver) return
+      const building = store.state.elements.find(element => element.id === buildingId)
+      if (!building || !isBuilding(building) || !building.type.spawns.includes(unitType)) return
+      const type = UNIT_TYPES[unitType]
+      const point = findSpawnPoint(building, type, store.state.elements, store.state.map)
+      if (!point) return
+      store.commit(MUTATIONS.ADD_ELEMENT, createUnit(type, point.x, point.y, building.group))
     },
     // Пауза и конец игры останавливают мир; камера при этом продолжает работать
     tick: (store, delta) => {
