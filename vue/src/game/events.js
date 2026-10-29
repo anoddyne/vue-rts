@@ -2,6 +2,7 @@
 // Цепочка одного юнита делит linkId: событие с меньшим order выполняется первым,
 // после его завершения в том же кадре начинается следующее.
 import { isBuilding, isUnit, MOVE_RESULT, stepToward } from './objects.js'
+import { findPath } from './pathfinding.js'
 
 export const EVENT_TYPES = {
   MOVE: 'move',
@@ -10,6 +11,8 @@ export const EVENT_TYPES = {
 let nextEventId = 1
 let nextLinkId = 1
 
+// path — точки обходного маршрута вокруг зданий; вычисляется при первом кадре события
+// (от реальной позиции юнита) и живёт внутри этого же события. Пустой массив — путь по прямой.
 export const createMoveEvent = (elementId, linkId, order, x, y) => ({
   id: nextEventId++,
   type: EVENT_TYPES.MOVE,
@@ -18,6 +21,7 @@ export const createMoveEvent = (elementId, linkId, order, x, y) => ({
   order,
   x,
   y,
+  path: null,
 })
 
 const chainOf = (events, elementId) => events
@@ -41,8 +45,9 @@ export const issueMoveOrders = (events, orders, queue) => {
 
 // Следующий кадр. Координаты элементов обновляются на месте.
 // Законченное событие снимается с очереди, остаток времени кадра уходит следующему в той же связи.
-// Если путь упирается в здание, снимается вся оставшаяся цепочка этого юнита.
-export const nextFrame = (elements, events, delta) => {
+// Юнит идёт по точкам обходного маршрута события; если шаг всё же упирается в здание,
+// снимается вся оставшаяся цепочка этого юнита.
+export const nextFrame = (elements, events, delta, map) => {
   if (!events.length || delta <= 0) return events
 
   const buildings = elements.filter(isBuilding)
@@ -61,16 +66,27 @@ export const nextFrame = (elements, events, delta) => {
     let time = delta
     for (let index = 0; index < chain.length && time > 0; index++) {
       const event = chain[index]
-      const result = stepToward(element, event, time, buildings)
-      if (result.status === MOVE_RESULT.MOVING) return
+      if (!event.path) event.path = findPath(element, event, buildings, map) ?? []
 
-      if (result.status === MOVE_RESULT.BLOCKED) {
-        chain.slice(index).forEach(item => removeIds.add(item.id))
-        return
+      // Точки маршрута внутри одного события: дойдя до очередной, сразу идём к следующей
+      for (;;) {
+        const waypoint = event.path.length ? event.path[0] : event
+        const result = stepToward(element, waypoint, time, buildings)
+        if (result.status === MOVE_RESULT.MOVING) return
+
+        if (result.status === MOVE_RESULT.BLOCKED) {
+          chain.slice(index).forEach(item => removeIds.add(item.id))
+          return
+        }
+
+        time = result.remaining
+        if (event.path.length) {
+          event.path.shift()
+          continue
+        }
+        removeIds.add(event.id)
+        break
       }
-
-      removeIds.add(event.id)
-      time = result.remaining
     }
   })
 

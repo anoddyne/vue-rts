@@ -52,13 +52,16 @@ export const createBuilding = (type, x, y, group = 1) => ({
 export const isUnit = (object) => object.kind === OBJECT_KINDS.UNIT
 export const isBuilding = (object) => object.kind === OBJECT_KINDS.BUILDING
 
-// Задевает ли круг юнита в точке (x, y) квадратное основание здания
-const overlapsBuilding = (unit, x, y, building) => {
+// Задевает ли круг радиуса radius с центром (x, y) квадратное основание здания
+export const circleOverlapsBuilding = (x, y, radius, building) => {
   const half = building.type.size / 2
   const nearestX = Math.max(building.x - half, Math.min(x, building.x + half))
   const nearestY = Math.max(building.y - half, Math.min(y, building.y + half))
-  return Math.hypot(x - nearestX, y - nearestY) < unit.type.radius
+  return Math.hypot(x - nearestX, y - nearestY) < radius
 }
+
+// Задевает ли круг юнита в точке (x, y) квадратное основание здания
+const overlapsBuilding = (unit, x, y, building) => circleOverlapsBuilding(x, y, unit.type.radius, building)
 
 export const MOVE_RESULT = {
   MOVING: 'moving',

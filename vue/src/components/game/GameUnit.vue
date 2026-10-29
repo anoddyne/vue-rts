@@ -71,7 +71,10 @@ const marks = computed(() => props.waypoints.map(point => ({
   id: point.id,
   ...worldToScreen(point.x, point.y, props.gridSize),
 })))
-const routePoints = computed(() => [position.value, ...marks.value]
+// Линия маршрута проходит через все точки обхода каждого события
+const routePoints = computed(() => [position.value, ...props.waypoints
+  .flatMap(event => (event.path?.length ? event.path : [event])
+    .map(point => worldToScreen(point.x, point.y, props.gridSize)))]
   .map(point => `${point.x},${point.y}`)
   .join(' '))
 </script>

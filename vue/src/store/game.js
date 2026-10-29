@@ -66,7 +66,7 @@ export default {
       Object.assign(state, fresh)
     },
     [MUTATIONS.TICK]: (state, delta) => {
-      state.events = nextFrame(state.elements, state.events, delta)
+      state.events = nextFrame(state.elements, state.events, delta, state.map)
       state.gameOver = detectGameOver(state) ?? state.gameOver
     },
   },
