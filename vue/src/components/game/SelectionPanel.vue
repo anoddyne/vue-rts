@@ -58,11 +58,18 @@ const counts = computed(() => props.objects.reduce((result, object) => {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  min-height: 110px;
+  // Постоянная высота: при смене выбора карта над панелью не меняет размер
+  flex-shrink: 0;
+  box-sizing: border-box;
+  height: 176px;
   padding: 8px 16px;
   border-top: 1px solid #66805b;
   background: #1b2719;
   color: #f0f4e7;
+
+  &__info {
+    overflow-y: auto;
+  }
 
   &__spawn {
     display: flex;
