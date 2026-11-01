@@ -1,11 +1,12 @@
 import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
-import { isUnit, isBuilding, getDepth } from '@/game/objects.js'
+import { UNIT_TYPES, isUnit, isBuilding, getDepth, createUnit, findSpawnPoint } from '@/game/objects.js'
 import { issueMoveOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 
 const MUTATIONS = {
   SET_SELECTED: 'SET_SELECTED',
   SET_EVENTS: 'SET_EVENTS',
+  ADD_ELEMENT: 'ADD_ELEMENT',
   SET_PAUSED: 'SET_PAUSED',
   SET_GAME_OVER: 'SET_GAME_OVER',
   START: 'START',
@@ -55,6 +56,9 @@ export default {
     },
     [MUTATIONS.SET_EVENTS]: (state, events) => {
       state.events = events
+    },
+    [MUTATIONS.ADD_ELEMENT]: (state, element) => {
+      state.elements.push(element)
     },
     [MUTATIONS.SET_PAUSED]: (state, paused) => {
       state.paused = paused
@@ -132,6 +136,17 @@ export default {
       })
 
       store.commit(MUTATIONS.SET_EVENTS, issueMoveOrders(store.state.events, orders, queue))
+    },
+    // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
+    // Тип юнита должен быть в списке spawns здания; если рядом нет свободного места, юнит не создаётся.
+    spawn: (store, { buildingId, unitType }) => {
+      if (store.state.gameOver) return
+      const building = store.state.elements.find(element => element.id === buildingId)
+      if (!building || !isBuilding(building) || !building.type.spawns.includes(unitType)) return
+      const type = UNIT_TYPES[unitType]
+      const point = findSpawnPoint(building, type, store.state.elements, store.state.map)
+      if (!point) return
+      store.commit(MUTATIONS.ADD_ELEMENT, createUnit(type, point.x, point.y, building.group))
     },
     // Пауза и конец игры останавливают мир; камера при этом продолжает работать
     tick: (store, delta) => {
