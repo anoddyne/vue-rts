@@ -4,7 +4,7 @@
         v-if="marks.length"
         :points="routePoints"
         fill="none"
-        stroke="#ffe08a"
+        :stroke="routeColor"
         stroke-width="1.5"
         stroke-dasharray="5 4"
         pointer-events="none"
@@ -17,7 +17,7 @@
         rx="7"
         ry="4"
         fill="none"
-        :stroke="index === 0 ? '#ffe08a' : '#d7c48a'"
+        :stroke="mark.attack ? ATTACK_COLOR : index === 0 ? '#ffe08a' : '#d7c48a'"
         :stroke-width="index === 0 ? 2 : 1.5"
         :stroke-dasharray="index === 0 ? null : '3 2'"
         pointer-events="none"
@@ -72,8 +72,12 @@ const emit = defineEmits(['select'])
 const position = computed(() => worldToScreen(props.unit.x, props.unit.y, props.gridSize))
 // Заливка — цвет группы, точка в центре — цвет типа юнита
 const groupColor = computed(() => getGroupColor(props.unit.group))
+// Линия к цели атаки красная, линия движения — жёлтая
+const ATTACK_COLOR = '#ff6b5a'
+const routeColor = computed(() => props.waypoints[0]?.attack ? ATTACK_COLOR : '#ffe08a')
 const marks = computed(() => props.waypoints.map(point => ({
   id: point.id,
+  attack: point.attack,
   ...worldToScreen(point.x, point.y, props.gridSize),
 })))
 // Линия маршрута проходит через все точки обхода каждого события

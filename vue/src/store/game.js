@@ -40,10 +40,18 @@ export default {
     getDrawOrder: (state) => [...state.elements].sort((a, b) => getDepth(a) - getDepth(b)),
     getSelected: (state) => state.elements.filter(element => state.selectedIds.includes(element.id)),
     isSelected: (state) => (id) => state.selectedIds.includes(id),
-    // Точки цепочки юнита в порядке выполнения
+    // Точки цепочки юнита в порядке выполнения. Для атаки точка — текущая позиция цели,
+    // path — обход зданий на подходе к цели, attack — признак атаки для отрисовки
     getWaypoints: (state) => (elementId) => state.events
-      .filter(event => event.elementId === elementId && event.type === EVENT_TYPES.MOVE)
-      .sort((a, b) => a.order - b.order),
+      .filter(event => event.elementId === elementId)
+      .sort((a, b) => a.order - b.order)
+      .map(event => {
+        if (event.type !== EVENT_TYPES.ATTACK) return event
+        const target = state.elements.find(element => element.id === event.targetId)
+        if (!target) return null
+        return { id: event.id, x: target.x, y: target.y, path: event.path?.length ? [...event.path, target] : null, attack: true }
+      })
+      .filter(Boolean),
     isPaused: (state) => state.paused,
     getGameOver: (state) => state.gameOver,
     getScenarioId: (state) => state.scenarioId,
