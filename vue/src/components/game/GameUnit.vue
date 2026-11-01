@@ -24,6 +24,7 @@
     />
     <g
         class="game-unit"
+        :data-element-id="unit.id"
         :transform="`translate(${position.x} ${position.y})`"
         role="button"
         :aria-label="unit.type.name"
@@ -49,6 +50,7 @@
           stroke-width="1.5"
       />
       <circle :cy="-unit.type.radius" :r="unit.type.radius * 0.5" :fill="unit.type.color" />
+      <HealthBar :health="unit.health" :max-health="unit.type.maxHealth" :y="-unit.type.radius * 2 - 8" :width="24" />
     </g>
   </g>
 </template>
@@ -57,6 +59,7 @@
 import { computed } from 'vue'
 import { worldToScreen } from '@/game/map.js'
 import { getGroupColor } from '@/game/objects.js'
+import HealthBar from '@/components/game/HealthBar.vue'
 
 const props = defineProps({
   unit: { type: Object, required: true },

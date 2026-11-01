@@ -4,10 +4,12 @@ export const OBJECT_KINDS = {
   BUILDING: 'building',
 }
 
+// attack: damage — сколько здоровья снимает удар, interval — секунд между ударами (скорость атаки),
+// range — дистанция удара от края юнита до края цели
 export const UNIT_TYPES = {
-  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, color: '#ffd376' },
-  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, color: '#e07b5a' },
-  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, color: '#8ab4e8' },
+  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
+  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
+  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, color: '#8ab4e8', attack: { damage: 4, interval: 1, range: 6 } },
 }
 
 // size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях,
@@ -35,6 +37,8 @@ export const createUnit = (type, x, y, group = 1) => ({
   y,
   group,
   health: type.maxHealth,
+  // Сколько секунд осталось до следующего удара
+  attackCooldown: 0,
 })
 
 export const createBuilding = (type, x, y, group = 1) => ({
@@ -87,6 +91,35 @@ export const findSpawnPoint = (building, unitType, elements, map) => {
     }
   }
   return null
+}
+
+// Ближайшая к юниту точка цели и зазор между краем юнита и краем цели
+export const getContact = (unit, target) => {
+  if (isBuilding(target)) {
+    const half = target.type.size / 2
+    const x = Math.max(target.x - half, Math.min(unit.x, target.x + half))
+    const y = Math.max(target.y - half, Math.min(unit.y, target.y + half))
+    return { x, y, gap: Math.hypot(unit.x - x, unit.y - y) - unit.type.radius }
+  }
+  return { x: target.x, y: target.y, gap: Math.hypot(unit.x - target.x, unit.y - target.y) - unit.type.radius - target.type.radius }
+}
+
+// Точка, в которой юнит встаёт для удара: на линии к цели, с зазором в половину дальности атаки
+export const getAttackPosition = (unit, contact) => {
+  const distance = Math.hypot(contact.x - unit.x, contact.y - unit.y)
+  if (distance === 0) return { x: unit.x, y: unit.y }
+  const approach = contact.gap - unit.type.attack.range / 2
+  return {
+    x: unit.x + (contact.x - unit.x) / distance * approach,
+    y: unit.y + (contact.y - unit.y) / distance * approach,
+  }
+}
+
+// Удар по цели, если перезарядка закончилась
+export const strike = (unit, target) => {
+  if (unit.attackCooldown > 0) return
+  target.health = Math.max(0, target.health - unit.type.attack.damage)
+  unit.attackCooldown = unit.type.attack.interval
 }
 
 export const MOVE_RESULT = {

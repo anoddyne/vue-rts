@@ -1,6 +1,7 @@
 <template>
   <g
       class="game-building"
+      :data-element-id="building.id"
       role="button"
       :aria-label="building.type.name"
       :aria-pressed="selected"
@@ -14,6 +15,9 @@
     <polygon :points="faces.roof" :fill="building.type.color" :stroke="stroke" :stroke-width="selected ? 2 : 1" />
     <line :x1="faces.top.x" :y1="faces.top.y" :x2="faces.top.x" :y2="faces.top.y - 22" stroke="#3b2a17" stroke-width="2" />
     <polygon :points="faces.flag" :fill="groupColor" stroke="#3b2a17" stroke-width="1" />
+    <g :transform="`translate(${faces.top.x} ${faces.top.y})`">
+      <HealthBar :health="building.health" :max-health="building.type.maxHealth" :y="-30" :width="48" />
+    </g>
   </g>
 </template>
 
@@ -21,6 +25,7 @@
 import { computed } from 'vue'
 import { worldToScreen } from '@/game/map.js'
 import { getGroupColor } from '@/game/objects.js'
+import HealthBar from '@/components/game/HealthBar.vue'
 
 const props = defineProps({
   building: { type: Object, required: true },
