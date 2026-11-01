@@ -18,14 +18,11 @@ export const BUILDING_TYPES = {
   BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
 }
 
-// Группы игроков. Цвет обводки выделяет группу на карте, имя показывается в панели выбора.
-export const GROUP_COLORS = {
-  1: { unit: '#493618', building: '#3b2a17' },
-  2: { unit: '#8f2f21', building: '#6f2419' },
-  3: { unit: '#4c3a86', building: '#3a2c68' },
-}
+// Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
+// Первые группы берут цвета из списка, следующие — оттенок по номеру группы.
+export const GROUP_COLORS = ['#3d7be0', '#d6453a', '#8e5ad6', '#3fae5a', '#e0912f', '#2fb5b5', '#d64f9c', '#c9c23a']
 
-export const getGroupStyle = (group) => GROUP_COLORS[group] ?? GROUP_COLORS[1]
+export const getGroupColor = (group) => GROUP_COLORS[group - 1] ?? `hsl(${(group * 137) % 360}, 65%, 55%)`
 export const getGroupName = (group) => `Группа ${group}`
 
 let nextId = 1
