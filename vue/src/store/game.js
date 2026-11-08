@@ -2,6 +2,25 @@ import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
 import { UNIT_TYPES, isUnit, isBuilding, getDepth, createUnit, findSpawnPoint } from '@/game/objects.js'
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
+import { circleOverlapsBuilding } from '@/game/objects.js'
+
+
+// Проверка, является ли точка водой 
+// делаем "озеро" в центре карты (квадрат от -200 до 200)
+export const isWater = (x, y) => {
+  //  если точка попадает в зону озера, возвращаем true
+  return x > -200 && x < 200 && y > -200 && y < 200
+}
+// Проверка, занята ли точка другим объектом (коллизия)
+const isOccupied = (x, y, elements, ignoreId = null) => {
+  // Радиус коллизии (чтобы юниты не слипались). Например, 20 единиц.
+  const COLLISION_RADIUS = 20 
+  return elements.some(el => {
+    if (el.id === ignoreId) return false // Игнорируем самого себя
+    const dist = Math.hypot(el.x - x, el.y - y)
+    return dist < COLLISION_RADIUS
+  })
+}
 
 const MUTATIONS = {
   SET_SELECTED: 'SET_SELECTED',
@@ -154,9 +173,30 @@ export default {
           map.gridSize,
         )
         const point = clampToMap(formationPoint, map)
-        return { elementId: unit.id, x: point.x, y: point.y }
-      })
 
+// 1. Проверка на воду: если юнит не умеет плавать, а точка в воде, отменяем приказ
+// (Предполагаем, что у юнита есть свойство canSwim, если нет, просто проверяем isWater(point.x, point.y))
+        const canSwim = unit.canSwim || false 
+         if (isWater(point.x, point.y) && !canSwim) {
+          return null // Этот юнит не пойдет
+        }
+
+// 2. Проверка на наложение: если точка занята, ищем ближайшую свободную
+// (если занято, просто смещаем точку на шаг вправо)
+          let finalX = point.x
+          let finalY = point.y
+          let attempts = 0
+          while (isOccupied(finalX, finalY, store.state.elements, unit.id) && attempts < 10) {
+           finalX += 20 // Сдвигаем по X
+           finalY += 20 // Сдвигаем по Y
+          attempts++
+          }
+
+        return { elementId: unit.id, x: finalX, y: finalY }
+       })
+
+      // Убираем null из массива заказов, если юнит не смог пойти
+      const validOrders = orders.filter(order => order !== null)
       store.commit(MUTATIONS.SET_EVENTS, issueOrders(store.state.events, [...attackOrders, ...orders], queue))
     },
     // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
