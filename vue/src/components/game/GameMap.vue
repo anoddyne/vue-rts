@@ -3,7 +3,7 @@
       class="game-map"
       @mousedown="onMouseDown"
       @click.capture="onClickCapture"
-      @click="emit('background-click', $event)"
+      @click="onBackgroundClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
       @mouseleave="mouse = null"
@@ -25,6 +25,19 @@
       </desc>
 
       <polygon :points="outline" fill="#354c2e" stroke="#b9cba5" stroke-width="2" />
+      <polygon 
+        v-for="(tile, index) in waterTiles" 
+        :key="'water-' + index"
+        :points="toPolygonPoints([
+           { x: tile.x, y: tile.y },
+           { x: tile.x + map.gridSize, y: tile.y },
+           { x: tile.x + map.gridSize, y: tile.y + map.gridSize },
+           { x: tile.x, y: tile.y + map.gridSize }
+        ], map.gridSize)"
+        fill="#3b82f6" 
+        stroke="#2563eb" 
+        stroke-width="1"
+     />
       <line
           v-for="(line, index) in gridLines"
           :key="index"
@@ -50,6 +63,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { isWater } from '@/store/game.js' 
 import { useStore } from 'vuex'
 import {
   worldToScreen,
@@ -58,9 +72,13 @@ import {
   getProjectedSize,
   getMapOutline,
   getGridLines,
+  toPolygonPoints,
 } from '@/game/map.js'
 
-const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause'])
+const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause', 'build-here'])
+const props = defineProps({
+  buildMode: { type: String, default: null }
+})
 
 const CAMERA_SPEED = 600
 const EDGE_SIZE = 16
@@ -73,6 +91,18 @@ const map = computed(() => store.getters['game/getMap'])
 const projected = computed(() => getProjectedSize(map.value))
 const outline = computed(() => getMapOutline(map.value))
 const gridLines = computed(() => getGridLines(map.value))
+const waterTiles = computed(() => {
+  const tiles = []
+  const { width, height, gridSize } = map.value
+  for (let x = -width / 2; x < width / 2; x += gridSize) {
+    for (let y = -height / 2; y < height / 2; y += gridSize) {
+      if (isWater(x + gridSize/2, y + gridSize/2)) {
+        tiles.push({ x, y })
+      }
+    }
+  }
+  return tiles
+})
 const xLabel = computed(() => worldToScreen(map.value.gridSize * 4, 0, map.value.gridSize))
 const yLabel = computed(() => worldToScreen(0, map.value.gridSize * 4, map.value.gridSize))
 
@@ -285,6 +315,18 @@ onUnmounted(() => {
   cancelAnimationFrame(animationFrame)
   clearInput()
 })
+
+const onBackgroundClick = (event) => {
+  if (props.buildMode) {
+    const point = toSvgPoint(event.clientX, event.clientY)
+    if (point) {
+      const worldPoint = screenToWorld(point.x, point.y, map.value.gridSize)
+      emit('build-here', { type: props.buildMode, x: worldPoint.x, y: worldPoint.y })
+    }
+  } else {
+    emit('background-click', event)
+  }
+}
 </script>
 
 <style scoped lang="scss">
