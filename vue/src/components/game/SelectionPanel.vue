@@ -19,19 +19,17 @@
         </div>
                 <!-- Выводим силу и скорость передвижения (только для юнитов) -->
         <div v-if="objects[0].kind === 'unit'">Сила: {{ objects[0].type.strength }}</div>
-        <div v-if="objects[0].type.speed">Скорость передвижения: {{ objects[0].type.speed }}</div>
-        
+
         <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
 
         <!-- Кнопка самоуничтожения. Показывается только для юнитов. -->
-        <button 
-          v-if="objects[0].kind === 'unit'" 
-          class="btn-destroy" 
+        <button
+          v-if="objects[0].kind === 'unit'"
+          class="btn-destroy"
           @click="handleSelfDestruct(objects[0].id)"
         >
           Самоуничтожиться
         </button>
-        <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
         <div v-if="objects[0].type.spawns?.length" class="selection-panel__spawn">
           <button
               v-for="key in objects[0].type.spawns"
