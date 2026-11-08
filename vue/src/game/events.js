@@ -2,7 +2,7 @@
 // Цепочка одного юнита делит linkId: событие с меньшим order выполняется первым,
 // после его завершения в том же кадре начинается следующее.
 import { isBuilding, isUnit, MOVE_RESULT, stepToward, getContact, getAttackPosition, strike } from './objects.js'
-import { findPath } from './pathfinding.js'
+import { findPath, isPathClear, skipPassedWaypoints } from './pathfinding.js'
 
 export const EVENT_TYPES = {
   MOVE: 'move',
@@ -58,7 +58,8 @@ export const issueOrders = (events, orders, queue) => {
   return next
 }
 
-// Кадр атаки: в зоне удара — удар, иначе шаг к цели (по обходному пути, если прямой путь закрыт).
+// Кадр атаки: в зоне удара — удар, иначе шаг к цели. Прямой подход проверяется тем же
+// предикатом, что и построение пути (здания и вода): закрыт — идём по обходному пути.
 // false — к цели не подойти, атака снимается.
 const attackFrame = (unit, target, event, time, buildings, map) => {
   const contact = getContact(unit, target)
@@ -68,16 +69,27 @@ const attackFrame = (unit, target, event, time, buildings, map) => {
     return true
   }
 
+  const position = getAttackPosition(unit, contact)
+  if (isPathClear(unit, position, unit, buildings)) {
+    event.path = null // прямой подход свободен — обходной путь больше не нужен
+  } else if (!event.path?.length) {
+    event.path = findPath(unit, position, buildings, map) ?? []
+  }
+
   if (event.path?.length) {
-    const result = stepToward(unit, event.path[0], time, buildings)
-    if (result.status === MOVE_RESULT.DONE) event.path.shift()
+    // Срезаем углы на подходе: прямой путь до дальней точки маршрута или до цели короче.
+    // Срез может опустошить путь — тогда шагаем прямо к точке удара.
+    skipPassedWaypoints(unit, event.path, position, buildings)
+    const waypoint = event.path.length ? event.path[0] : position
+    const result = stepToward(unit, waypoint, time, buildings)
+    if (result.status === MOVE_RESULT.DONE && event.path.length) event.path.shift()
     return result.status !== MOVE_RESULT.BLOCKED
   }
 
-  const position = getAttackPosition(unit, contact)
   const result = stepToward(unit, position, time, buildings)
   if (result.status !== MOVE_RESULT.BLOCKED) return true
 
+  // Страховка: прямой шаг заблокирован зданием — считаем обход
   event.path = findPath(unit, position, buildings, map) ?? []
   return event.path.length > 0
 }
@@ -118,6 +130,8 @@ export const nextFrame = (elements, events, delta, map) => {
         return
       }
       if (!event.path) event.path = findPath(element, event, buildings, map) ?? []
+      // Срезаем углы на ходу: прямой путь до дальней точки маршрута (или до цели) короче
+      skipPassedWaypoints(element, event.path, event, buildings)
 
       // Точки маршрута внутри одного события: дойдя до очередной, сразу идём к следующей
       for (;;) {

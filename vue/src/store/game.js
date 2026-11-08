@@ -3,21 +3,15 @@ import { UNIT_TYPES, BUILDING_TYPES, isUnit, isBuilding, getDepth, createUnit, c
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 import { circleOverlapsBuilding } from '@/game/objects.js'
+import { isWater } from '@/game/terrain.js'
 
-
-// Проверка, является ли точка водой 
-// делаем "озеро" в центре карты (квадрат от -200 до 200)
-export const isWater = (x, y) => {
-  //  если точка попадает в зону озера, возвращаем true
-  return x > -200 && x < 200 && y > -200 && y < 200
-}
 // Проверка, занята ли точка другим объектом (коллизия)
 const isOccupied = (x, y, radius, elements, ignoreId = null) => {
   // Защита от ошибок: если elements не массив, ничего не проверяем
-   if (!Array.isArray(elements)) return false; 
+   if (!Array.isArray(elements)) return false;
 
   return elements.some(el => {
-    if (el.id === ignoreId) return false 
+    if (el.id === ignoreId) return false
     if (el.kind === 'building') {
       return circleOverlapsBuilding(x, y, radius, el)
     } else {
@@ -224,12 +218,13 @@ export default {
           return null 
         }
 
-        // 2. Проверка на наложение
+        // 2. Проверка на наложение: точка занята другим объектом — сдвигаем по диагонали,
+        // пока не освободится (и не попадём в воду)
         let finalX = point.x
         let finalY = point.y
         let attempts = 0
-        while (isOccupied(finalX, finalY, store.state.elements, unit.id) && attempts < 10) {
-          finalX += 20 
+        while ((isOccupied(finalX, finalY, unit.type.radius, store.state.elements, unit.id) || isWater(finalX, finalY)) && attempts < 10) {
+          finalX += 20
           finalY += 20 
           attempts++
         }
