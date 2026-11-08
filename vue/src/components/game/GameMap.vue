@@ -3,7 +3,7 @@
       class="game-map"
       @mousedown="onMouseDown"
       @click.capture="onClickCapture"
-      @click="emit('background-click', $event)"
+      @click="onBackgroundClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
       @mouseleave="mouse = null"
@@ -75,7 +75,10 @@ import {
   toPolygonPoints,
 } from '@/game/map.js'
 
-const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause'])
+const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause', 'build-here'])
+const props = defineProps({
+  buildMode: { type: String, default: null }
+})
 
 const CAMERA_SPEED = 600
 const EDGE_SIZE = 16
@@ -312,6 +315,18 @@ onUnmounted(() => {
   cancelAnimationFrame(animationFrame)
   clearInput()
 })
+
+const onBackgroundClick = (event) => {
+  if (props.buildMode) {
+    const point = toSvgPoint(event.clientX, event.clientY)
+    if (point) {
+      const worldPoint = screenToWorld(point.x, point.y, map.value.gridSize)
+      emit('build-here', { type: props.buildMode, x: worldPoint.x, y: worldPoint.y })
+    }
+  } else {
+    emit('background-click', event)
+  }
+}
 </script>
 
 <style scoped lang="scss">

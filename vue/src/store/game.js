@@ -1,5 +1,5 @@
 import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
-import { UNIT_TYPES, isUnit, isBuilding, getDepth, createUnit, findSpawnPoint } from '@/game/objects.js'
+import { UNIT_TYPES, BUILDING_TYPES, isUnit, isBuilding, getDepth, createUnit, createBuilding, findSpawnPoint } from '@/game/objects.js'
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 import { circleOverlapsBuilding } from '@/game/objects.js'
@@ -12,13 +12,18 @@ export const isWater = (x, y) => {
   return x > -200 && x < 200 && y > -200 && y < 200
 }
 // Проверка, занята ли точка другим объектом (коллизия)
-const isOccupied = (x, y, elements, ignoreId = null) => {
-  // Радиус коллизии (чтобы юниты не слипались). Например, 20 единиц.
-  const COLLISION_RADIUS = 20 
+const isOccupied = (x, y, radius, elements, ignoreId = null) => {
+  // Защита от ошибок: если elements не массив, ничего не проверяем
+   if (!Array.isArray(elements)) return false; 
+
   return elements.some(el => {
-    if (el.id === ignoreId) return false // Игнорируем самого себя
-    const dist = Math.hypot(el.x - x, el.y - y)
-    return dist < COLLISION_RADIUS
+    if (el.id === ignoreId) return false 
+    if (el.kind === 'building') {
+      return circleOverlapsBuilding(x, y, radius, el)
+    } else {
+      const dist = Math.hypot(el.x - x, el.y - y)
+      return dist < (el.type.radius + radius)
+    }
   })
 }
 
@@ -145,7 +150,46 @@ export default {
       store.commit(MUTATIONS.SET_SELECTED, additive
         ? [...new Set([...store.state.selectedIds, ...ids])]
         : ids)
+      },
+    build: (store, { buildingType, x, y }) => {
+      if (store.state.gameOver) return
+      const { map } = store.state
+      
+      // Ищем тип здания в списке (импортируйте BUILDING_TYPES в начале файла)
+      // Если не импортировали, добавьте: import { BUILDING_TYPES } from '@/game/objects.js'
+      const type = BUILDING_TYPES[buildingType]
+      if (!type) return
+  
+      // Проверка на воду 
+      const halfSize = type.size / 2
+      const corners = [
+        { x: x - halfSize, y: y - halfSize },
+        { x: x + halfSize, y: y - halfSize },
+        { x: x - halfSize, y: y + halfSize },
+        { x: x + halfSize, y: y + halfSize }
+      ]
+
+      // Если хотя бы один угол попадает в воду, отменяем стройку
+      if (corners.some(corner => isWater(corner.x, corner.y))) {
+        console.warn("Нельзя строить на воде (задевает край)!")
+        return
+      }
+
+      // Проверка коллизий (чтобы здание не налезло на других)
+      // Для здания радиус примерно равен половине его размера
+      const radius = type.size / 2
+      if (isOccupied(x, y, radius, store.state.elements, null)) {
+        console.warn("Место занято!")
+        return
+      }
+
+      // Создаем здание (используем вашу функцию из objects.js)
+      
+      const newBuilding = createBuilding(type, x, y, 1) // 1 - это группа игрока
+      store.commit(MUTATIONS.ADD_ELEMENT, newBuilding)
+
     },
+  
     // Приказ выбранным юнитам по ПКМ. queue — дописать в цепочку (Shift), иначе заменить текущие события.
     // targetId — ПКМ по объекту: юниты других групп атакуют его, юниты его группы идут в точку (x, y).
     commandSelected: (store, { x, y, queue = false, targetId = null }) => {
@@ -174,30 +218,29 @@ export default {
         )
         const point = clampToMap(formationPoint, map)
 
-// 1. Проверка на воду: если юнит не умеет плавать, а точка в воде, отменяем приказ
-// (Предполагаем, что у юнита есть свойство canSwim, если нет, просто проверяем isWater(point.x, point.y))
+        // 1. Проверка на воду
         const canSwim = unit.canSwim || false 
-         if (isWater(point.x, point.y) && !canSwim) {
-          return null // Этот юнит не пойдет
+        if (isWater(point.x, point.y) && !canSwim) {
+          return null 
         }
 
-// 2. Проверка на наложение: если точка занята, ищем ближайшую свободную
-// (если занято, просто смещаем точку на шаг вправо)
-          let finalX = point.x
-          let finalY = point.y
-          let attempts = 0
-          while (isOccupied(finalX, finalY, store.state.elements, unit.id) && attempts < 10) {
-           finalX += 20 // Сдвигаем по X
-           finalY += 20 // Сдвигаем по Y
+        // 2. Проверка на наложение
+        let finalX = point.x
+        let finalY = point.y
+        let attempts = 0
+        while (isOccupied(finalX, finalY, store.state.elements, unit.id) && attempts < 10) {
+          finalX += 20 
+          finalY += 20 
           attempts++
-          }
+        }
 
         return { elementId: unit.id, x: finalX, y: finalY }
-       })
+      })
 
-      // Убираем null из массива заказов, если юнит не смог пойти
+      // Убираем null из массива заказов
       const validOrders = orders.filter(order => order !== null)
-      store.commit(MUTATIONS.SET_EVENTS, issueOrders(store.state.events, [...attackOrders, ...orders], queue))
+      // И передаем именно validOrders
+      store.commit(MUTATIONS.SET_EVENTS, issueOrders(store.state.events, [...attackOrders, ...validOrders], queue))
     },
     // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
     // Тип юнита должен быть в списке spawns здания; если рядом нет свободного места, юнит не создаётся.
@@ -215,5 +258,5 @@ export default {
       if (store.state.paused || store.state.gameOver) return
       store.commit(MUTATIONS.TICK, delta)
     },
-  },
+  }
 }

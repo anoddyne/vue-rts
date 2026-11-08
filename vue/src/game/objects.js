@@ -18,6 +18,7 @@ export const BUILDING_TYPES = {
   TOWN_CENTER: { name: 'Городской центр', size: 160, height: 48, maxHealth: 2400, color: '#b08a5a', spawns: ['VILLAGER'] },
   HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678', spawns: [] },
   BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
+  TOWER: { name: 'Башня', size: 80, height: 40, maxHealth: 800, color: '#7a8a9c', spawns: [] },
 }
 
 // Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
