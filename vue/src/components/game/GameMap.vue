@@ -63,7 +63,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { isWater } from '@/store/game.js' 
+import { isWater } from '@/game/terrain.js'
 import { useStore } from 'vuex'
 import {
   worldToScreen,

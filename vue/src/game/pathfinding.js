@@ -1,8 +1,9 @@
-// Поиск обходного пути вокруг зданий: сетка шагом gridSize + A* по четырём направлениям.
+// Поиск обходного пути вокруг зданий и озера: сетка шагом gridSize + A* по четырём направлениям.
 // Путь вычисляется один раз — когда событие начинает выполняться — и живёт внутри этого же события.
-// Клетка занята, если юнит с радиусом type.radius в её центре задевает здание; путь между соседними
-// свободными клетками тогда гарантированно чист, а сглаживание прямыми проверяется по точкам.
+// Клетка занята, если юнит (без canSwim) в её центре задевает здание или стоит на воде; путь между
+// соседними свободными клетками тогда гарантированно чист, а сглаживание прямыми проверяется по точкам.
 import { circleOverlapsBuilding } from './objects.js'
+import { isWater } from './terrain.js'
 
 // Шаг проверки отрезка на чистоту: меньше радиуса юнита, чтобы не перескочить препятствие.
 // Запас к радиусу компенсирует погрешность проверки по точкам (до половины шага, ≤ 3px):
@@ -10,8 +11,17 @@ import { circleOverlapsBuilding } from './objects.js'
 const CLEAR_STEP = 6
 const CLEAR_MARGIN = 4
 
+// Препятствует ли точка пути юниту: здание с запасом к радиусу или вода (если юнит не плавает).
+// Вода проверяется с тем же запасом: без него срезание углов одобряло отрезки, идущие
+// вплотную к кромке озера, и юнит вставал на границу воды.
+const blocksPath = (x, y, unit, buildings, clearance) => {
+  if (buildings.some(building => circleOverlapsBuilding(x, y, clearance, building))) return true
+  return !unit.canSwim && isWater(x, y, clearance)
+}
+
 // Свободен ли прямой отрезок: идём по нему шагами и проверяем здания с радиусом юнита
-const isPathClear = (from, to, unit, buildings) => {
+// (экспортируется для прямого подхода при атаке)
+export const isPathClear = (from, to, unit, buildings) => {
   const clearance = unit.type.radius + CLEAR_MARGIN
   const dx = to.x - from.x
   const dy = to.y - from.y
@@ -20,15 +30,16 @@ const isPathClear = (from, to, unit, buildings) => {
   for (let index = 0; index <= samples; index++) {
     const x = from.x + (dx * index) / samples
     const y = from.y + (dy * index) / samples
-    if (buildings.some(building => circleOverlapsBuilding(x, y, clearance, building))) return false
+    if (blocksPath(x, y, unit, buildings, clearance)) return false
   }
   return true
 }
 
 // Первый отрезок пути — от реальной позиции юнита, которая может быть вплотную к зданию
 // (внутри запаса клиренса). Поэтому проверяем точным радиусом и не проверяем точку старта:
-// юнит уже стоит в ней, двигаться надо от неё.
-const isPathClearAhead = (from, to, unit, buildings) => {
+// юнит уже стоит в ней, двигаться надо от неё. margin добавляет запас к радиусу.
+const isPathClearAhead = (from, to, unit, buildings, margin = 0) => {
+  const radius = unit.type.radius + margin
   const dx = to.x - from.x
   const dy = to.y - from.y
   const length = Math.hypot(dx, dy)
@@ -36,9 +47,20 @@ const isPathClearAhead = (from, to, unit, buildings) => {
   for (let index = 1; index <= samples; index++) {
     const x = from.x + (dx * index) / samples
     const y = from.y + (dy * index) / samples
-    if (buildings.some(building => circleOverlapsBuilding(x, y, unit.type.radius, building))) return false
+    if (blocksPath(x, y, unit, buildings, radius)) return false
   }
   return true
+}
+
+// Срезание углов на ходу: пока прямой путь до следующей точки маршрута (или до конечной цели)
+// свободен с запасом, промежуточные точки выбрасываются — юнит срезает угол здания по диагонали,
+// вместо того чтобы идти через центры клеток «по катетам». Запас на прямой меньше статического
+// на 1px: точка старта не проверяется, а проседание между сэмплами (≤ CLEAR_STEP / 2) не должно
+// довести реальный зазор до радиуса, иначе шаг заблокирует точный stepToward.
+export const skipPassedWaypoints = (unit, path, finalPoint, buildings) => {
+  while (path.length && isPathClearAhead(unit, path.length > 1 ? path[1] : finalPoint, unit, buildings, CLEAR_MARGIN - 1)) {
+    path.shift()
+  }
 }
 
 // Очередь с приоритетом по стоимости f — двоичная куча
@@ -93,7 +115,6 @@ const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 // Возвращает точки маршрута от позиции юнита к цели (последняя точка — место остановки).
 // Пустой массив — прямая до цели свободна, юнит идёт напрямую.
 export const findPath = (unit, target, buildings, map) => {
-  if (!buildings.length) return []
   if (isPathClear(unit, target, unit, buildings)) return []
 
   const cellSize = map.gridSize
@@ -109,13 +130,15 @@ export const findPath = (unit, target, buildings, map) => {
   })
   const toCell = (value, half, count) => Math.min(count - 1, Math.max(0, Math.floor((value + half) / cellSize)))
 
-  // Клетка занята, если в её центре юнит задевает здание (с запасом к радиусу)
+  // Клетка занята, если в её центре юнит задевает здание (с запасом к радиусу) или стоит на воде
   const clearance = unit.type.radius + CLEAR_MARGIN
+  const waterBlocks = !unit.canSwim
   const blocked = new Uint8Array(cols * rows)
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
       const point = cellPoint(i, j)
-      blocked[toIndex(i, j)] = buildings.some(building => circleOverlapsBuilding(point.x, point.y, clearance, building)) ? 1 : 0
+      blocked[toIndex(i, j)] = ((waterBlocks && isWater(point.x, point.y))
+        || buildings.some(building => circleOverlapsBuilding(point.x, point.y, clearance, building))) ? 1 : 0
     }
   }
 

@@ -81,6 +81,7 @@ const isSelected = (id) => store.getters['game/isSelected'](id)
 const select = (id, event) => store.dispatch('game/select', { id, additive: Boolean(event?.shiftKey) })
 const clearSelection = (event) => {
   if (event?.shiftKey) return
+  buildMode.value = null // Esc и клик по фону также отменяют режим стройки
   store.dispatch('game/clearSelection')
 }
 const togglePause = () => store.dispatch('game/togglePause')
