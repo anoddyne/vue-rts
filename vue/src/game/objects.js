@@ -22,6 +22,7 @@ export const BUILDING_TYPES = {
   TOWN_CENTER: { name: 'Городской центр', size: 160, height: 48, maxHealth: 2400, color: '#b08a5a', spawns: ['VILLAGER'] },
   HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678', spawns: [] },
   BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
+  TOWER: { name: 'Башня', size: 160, height: 40, maxHealth: 800, color: '#7a8a9c', spawns: [] },
 }
 
 // Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
@@ -69,6 +70,8 @@ export const circleOverlapsBuilding = (x, y, radius, building) => {
 // Задевает ли круг юнита в точке (x, y) квадратное основание здания
 const overlapsBuilding = (unit, x, y, building) => circleOverlapsBuilding(x, y, unit.type.radius, building)
 
+import { isWater } from './terrain.js'
+
 // Шаг между кольцами поиска места и число точек на кольце
 const SPAWN_GAP = 6
 const SPAWN_POINTS_PER_RING = 12
@@ -80,7 +83,7 @@ export const findSpawnPoint = (building, unitType, elements, map) => {
   const radius = unitType.radius
   const buildings = elements.filter(isBuilding)
   const units = elements.filter(isUnit)
-  const isFree = (x, y) => Math.abs(x) <= map.width / 2 && Math.abs(y) <= map.height / 2
+  const isFree = (x, y) => Math.abs(x) <= map.width / 2 && Math.abs(y) <= map.height / 2 && !isWater(x, y, radius)
     && !buildings.some(other => circleOverlapsBuilding(x, y, radius + 1, other))
     && !units.some(unit => Math.hypot(unit.x - x, unit.y - y) < unit.type.radius + radius + 2)
 

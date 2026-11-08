@@ -1,7 +1,14 @@
 <template>
   <div class="selection-panel">
     <div class="selection-panel__info">
-      <template v-if="!objects.length">Ничего не выбрано</template>
+      <template v-if="!objects.length">
+       <div>Ничего не выбрано</div>
+       <div class="selection-panel__build">
+         <span>Строительство:</span>
+         <button @mousedown.prevent @click="emit('start-build', 'HOUSE')">Дом (1x1)</button>
+         <button @mousedown.prevent @click="emit('start-build', 'TOWER')">Башня (2x2)</button>
+     </div>
+</template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
         <div>{{ getGroupName(objects[0].group) }}</div>
@@ -59,7 +66,8 @@ import { UNIT_TYPES, getGroupName } from '@/game/objects.js'
 const props = defineProps({
   objects: { type: Array, required: true },
 })
-const emit = defineEmits(['spawn'])
+
+const emit = defineEmits(['spawn', 'start-build'])
 // Импортируем хранилище (Store), чтобы иметь доступ к экшенам игры
 import { useStore } from 'vuex'
 const store = useStore()
@@ -71,6 +79,7 @@ const handleSelfDestruct = (unitId) => {
     store.dispatch('game/destroyObject', unitId)
   }
 }
+
 const counts = computed(() => props.objects.reduce((result, object) => {
   result[object.type.name] = (result[object.type.name] || 0) + 1
   return result
@@ -116,6 +125,22 @@ const counts = computed(() => props.objects.reduce((result, object) => {
   &__hint {
     color: #b9cba5;
     text-align: right;
+  }
+
+    &__build {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+
+    button {
+      padding: 4px 12px;
+      border: 1px solid #66805b;
+      background: #243421;
+      color: #f0f4e7;
+      cursor: pointer;
+      &:hover { background: #354c2e; }
+    }
   }
 }
 // Стили для красной кнопки самоуничтожения

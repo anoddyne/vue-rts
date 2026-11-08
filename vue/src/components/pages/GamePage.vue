@@ -1,6 +1,8 @@
 <template>
   <div class="game-page">
     <GameMap
+        :build-mode="buildMode"
+        @build-here="onBuildHere"
         @tick="delta => store.dispatch('game/tick', delta)"
         @background-click="clearSelection"
         @cancel="clearSelection"
@@ -40,12 +42,15 @@
         </div>
       </div>
     </div>
-    <SelectionPanel :objects="selected" @spawn="payload => store.dispatch('game/spawn', payload)" />
+    <SelectionPanel 
+      :objects="selected" 
+      @spawn="payload => store.dispatch('game/spawn', payload)" 
+      @start-build="startBuildingMode" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import GameMap from '@/components/game/GameMap.vue'
@@ -76,9 +81,21 @@ const isSelected = (id) => store.getters['game/isSelected'](id)
 const select = (id, event) => store.dispatch('game/select', { id, additive: Boolean(event?.shiftKey) })
 const clearSelection = (event) => {
   if (event?.shiftKey) return
+  buildMode.value = null // Esc и клик по фону также отменяют режим стройки
   store.dispatch('game/clearSelection')
 }
 const togglePause = () => store.dispatch('game/togglePause')
+
+const buildMode = ref(null)
+
+const startBuildingMode = (type) => {
+  buildMode.value = type
+}
+
+const onBuildHere = ({ type, x, y }) => {
+  store.dispatch('game/build', { buildingType: type, x, y })
+  buildMode.value = null // Выключаем режим стройки после клика
+}
 
 // Сценарий приходит из меню параметром /game?scenario=...
 const startScenario = (id) => {
