@@ -17,6 +17,20 @@
         <div v-if="objects[0].type.attack">
           Атака: {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
         </div>
+                <!-- Выводим силу и скорость передвижения (только для юнитов) -->
+        <div v-if="objects[0].kind === 'unit'">Сила: {{ objects[0].type.strength }}</div>
+        <div v-if="objects[0].type.speed">Скорость передвижения: {{ objects[0].type.speed }}</div>
+        
+        <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
+
+        <!-- Кнопка самоуничтожения. Показывается только для юнитов. -->
+        <button 
+          v-if="objects[0].kind === 'unit'" 
+          class="btn-destroy" 
+          @click="handleSelfDestruct(objects[0].id)"
+        >
+          Самоуничтожиться
+        </button>
         <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
         <div v-if="objects[0].type.spawns?.length" class="selection-panel__spawn">
           <button
@@ -52,7 +66,19 @@ import { UNIT_TYPES, getGroupName } from '@/game/objects.js'
 const props = defineProps({
   objects: { type: Array, required: true },
 })
+
 const emit = defineEmits(['spawn', 'start-build'])
+// Импортируем хранилище (Store), чтобы иметь доступ к экшенам игры
+import { useStore } from 'vuex'
+const store = useStore()
+// Функция для обработки нажатия на кнопку самоуничтожения
+const handleSelfDestruct = (unitId) => {
+  // Спрашиваем подтверждение, чтобы случайно не убить юнита
+  if (confirm('Вы уверены, что хотите уничтожить юнита?')) {
+    // Вызываем экшен destroyObject из модуля game, передавая ID юнита
+    store.dispatch('game/destroyObject', unitId)
+  }
+}
 
 const counts = computed(() => props.objects.reduce((result, object) => {
   result[object.type.name] = (result[object.type.name] || 0) + 1
@@ -115,6 +141,21 @@ const counts = computed(() => props.objects.reduce((result, object) => {
       cursor: pointer;
       &:hover { background: #354c2e; }
     }
+  }
+}
+// Стили для красной кнопки самоуничтожения
+.btn-destroy {
+  margin-top: 8px;
+  padding: 4px 12px;
+  background: #d6453a; // Красный цвет (опасность/удаление)
+  color: white;
+  border: 1px solid #ff6b5a;
+  cursor: pointer;
+  border-radius: 4px;
+  
+  // Эффект при наведении мыши
+  &:hover { 
+    background: #b0352b; 
   }
 }
 </style>

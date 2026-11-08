@@ -253,5 +253,15 @@ export default {
       if (store.state.paused || store.state.gameOver) return
       store.commit(MUTATIONS.TICK, delta)
     },
-  }
+    // Экшен для самоуничтожения юнита.
+    // Мы не удаляем объект из массива вручную, а просто обнуляем ему здоровье.
+    // Игровой цикл (мутация TICK) сам увидит, что health <= 0, и безопасно удалит его.
+    destroyObject: (store, id) => {
+      if (store.state.paused || store.state.gameOver) return
+      const element = store.state.elements.find(el => el.id === id && el.kind === 'unit')
+      if (element) {
+        element.health = 0
+      }
+    },
+  },
 }

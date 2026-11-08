@@ -5,11 +5,15 @@ export const OBJECT_KINDS = {
 }
 
 // attack: damage — сколько здоровья снимает удар, interval — секунд между ударами (скорость атаки),
-// range — дистанция удара от края юнита до края цели
+// range — дистанция удара от края юнита до края цели.
+// strength — сила персонажа (добавленная характеристика).
 export const UNIT_TYPES = {
-  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
-  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
-  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, color: '#8ab4e8', attack: { damage: 4, interval: 1, range: 6 } },
+  // Сила 3: слабый юнит 
+  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
+  // Сила 12: сильный боевой юнит
+  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
+  // Сила 7: средний юнит
+  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', attack: { damage: 4, interval: 1, range: 6 } },
 }
 
 // size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях,
