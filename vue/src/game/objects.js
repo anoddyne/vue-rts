@@ -13,7 +13,7 @@ export const UNIT_TYPES = {
   // Сила 12: сильный боевой юнит
   MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
   // Сила 7: средний юнит
-  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', attack: { damage: 4, interval: 1, range: 6 } },
+  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', canSwim: true, attack: { damage: 4, interval: 1, range: 6 } },
 }
 
 // size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях,
@@ -44,6 +44,7 @@ export const createUnit = (type, x, y, group = 1) => ({
   health: type.maxHealth,
   // Сколько секунд осталось до следующего удара
   attackCooldown: 0,
+  canSwim: type.canSwim || false,
 })
 
 export const createBuilding = (type, x, y, group = 1) => ({

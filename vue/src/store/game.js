@@ -149,8 +149,6 @@ export default {
       if (store.state.gameOver) return
       const { map } = store.state
       
-      // Ищем тип здания в списке (импортируйте BUILDING_TYPES в начале файла)
-      // Если не импортировали, добавьте: import { BUILDING_TYPES } from '@/game/objects.js'
       const type = BUILDING_TYPES[buildingType]
       if (!type) return
   
@@ -176,8 +174,6 @@ export default {
         console.warn("Место занято!")
         return
       }
-
-      // Создаем здание (используем вашу функцию из objects.js)
       
       const newBuilding = createBuilding(type, x, y, 1) // 1 - это группа игрока
       store.commit(MUTATIONS.ADD_ELEMENT, newBuilding)
@@ -223,7 +219,7 @@ export default {
         let finalX = point.x
         let finalY = point.y
         let attempts = 0
-        while ((isOccupied(finalX, finalY, unit.type.radius, store.state.elements, unit.id) || isWater(finalX, finalY)) && attempts < 10) {
+        while ((isOccupied(finalX, finalY, unit.type.radius, store.state.elements, unit.id) && attempts < 10)) {
           finalX += 20
           finalY += 20 
           attempts++
