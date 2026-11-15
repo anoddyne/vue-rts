@@ -2,13 +2,13 @@
   <div class="selection-panel">
     <div class="selection-panel__info">
       <template v-if="!objects.length">
-       <div>Ничего не выбрано</div>
-       <div class="selection-panel__build">
-         <span>Строительство:</span>
-         <button @mousedown.prevent @click="emit('start-build', 'HOUSE')">Дом (1x1)</button>
-         <button @mousedown.prevent @click="emit('start-build', 'TOWER')">Башня (2x2)</button>
-     </div>
-</template>
+        <div>Ничего не выбрано</div>
+        <div class="selection-panel__build">
+          <span>Строительство:</span>
+          <button @mousedown.prevent @click="emit('start-build', 'HOUSE')">Дом (1x1)</button>
+          <button @mousedown.prevent @click="emit('start-build', 'TOWER')">Башня (2x2)</button>
+        </div>
+      </template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
         <div>{{ getGroupName(objects[0].group) }}</div>
@@ -125,7 +125,7 @@ const counts = computed(() => props.objects.reduce((result, object) => {
     text-align: right;
   }
 
-    &__build {
+  &__build {
     display: flex;
     gap: 8px;
     margin-top: 10px;
@@ -137,6 +137,7 @@ const counts = computed(() => props.objects.reduce((result, object) => {
       background: #243421;
       color: #f0f4e7;
       cursor: pointer;
+
       &:hover { background: #354c2e; }
     }
   }
