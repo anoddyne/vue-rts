@@ -219,11 +219,15 @@ export default {
         let finalX = point.x
         let finalY = point.y
         let attempts = 0
-        while ((isOccupied(finalX, finalY, unit.type.radius, store.state.elements, unit.id) && attempts < 10)) {
+        // Плавающий юнит может быть сдвинут в воду, сухопутному вода в натиске запрещена
+        while ((isOccupied(finalX, finalY, unit.type.radius, store.state.elements, unit.id) || (!unit.canSwim && isWater(finalX, finalY))) && attempts < 10) {
           finalX += 20
-          finalY += 20 
+          finalY += 20
           attempts++
         }
+
+        // Натиск не нашёл свободного сухого места — приказ в воду сухопутному юниту отбрасывается
+        if (!unit.canSwim && isWater(finalX, finalY)) return null
 
         return { elementId: unit.id, x: finalX, y: finalY }
       })
