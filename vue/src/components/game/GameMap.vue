@@ -6,7 +6,7 @@
       @click="onBackgroundClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
-      @mouseleave="mouse = null"
+      @mouseleave="onMouseLeave"
   >
     <svg
         ref="svgRef"
@@ -151,6 +151,9 @@ const onWheel = (event) => {
 
 // Мышь: ЛКМ — выбор/рамка, СКМ — перетаскивание камеры, курсор у края — прокрутка
 const mouse = ref(null)
+const onMouseLeave = () => {
+  mouse.value = null
+}
 const selectionStart = ref(null)
 const selectionEnd = ref(null)
 const isSelecting = ref(false)
