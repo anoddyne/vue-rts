@@ -108,6 +108,13 @@ watch(() => route.query.scenario, (id) => startScenario(id))
 </script>
 
 <style scoped lang="scss">
+// Общий вид кнопок интерфейса поверх карты: бейдж паузы, кнопка паузы, кнопки оверлея
+%overlay-button {
+  padding: 6px 18px;
+  border: 1px solid #66805b;
+  color: #f0f4e7;
+}
+
 .game-page {
   position: fixed;
   inset: 0;
@@ -116,25 +123,23 @@ watch(() => route.query.scenario, (id) => startScenario(id))
 }
 
 .game-page__pause {
+  @extend %overlay-button;
+
   position: absolute;
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 18px;
-  border: 1px solid #66805b;
   background: rgba(27, 39, 25, 0.9);
-  color: #f0f4e7;
   pointer-events: none;
 }
 
 .game-page__pause-toggle {
+  @extend %overlay-button;
+
   position: absolute;
   top: 16px;
   right: 16px;
-  padding: 6px 18px;
-  border: 1px solid #66805b;
   background: rgba(27, 39, 25, 0.9);
-  color: #f0f4e7;
   cursor: pointer;
 
   &:hover {
@@ -178,11 +183,9 @@ watch(() => route.query.scenario, (id) => startScenario(id))
   align-items: center;
 
   button {
-    padding: 6px 18px;
-    border: 1px solid #66805b;
+    @extend %overlay-button;
+
     background: #243421;
-    color: #f0f4e7;
-    cursor: pointer;
 
     &:hover {
       background: #354c2e;
