@@ -3,10 +3,10 @@
       class="game-map"
       @mousedown="onMouseDown"
       @click.capture="onClickCapture"
-      @click="emit('background-click')"
+      @click="onBackgroundClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
-      @mouseleave="mouse = null"
+      @mouseleave="onMouseLeave"
   >
     <svg
         ref="svgRef"
@@ -25,6 +25,19 @@
       </desc>
 
       <polygon :points="outline" fill="#354c2e" stroke="#b9cba5" stroke-width="2" />
+      <polygon 
+        v-for="(tile, index) in waterTiles" 
+        :key="'water-' + index"
+        :points="toPolygonPoints([
+           { x: tile.x, y: tile.y },
+           { x: tile.x + map.gridSize, y: tile.y },
+           { x: tile.x + map.gridSize, y: tile.y + map.gridSize },
+           { x: tile.x, y: tile.y + map.gridSize }
+        ], map.gridSize)"
+        fill="#3b82f6" 
+        stroke="#2563eb" 
+        stroke-width="1"
+     />
       <line
           v-for="(line, index) in gridLines"
           :key="index"
@@ -49,7 +62,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { isWater } from '@/game/terrain.js'
 import { useStore } from 'vuex'
 import {
   worldToScreen,
@@ -58,9 +72,13 @@ import {
   getProjectedSize,
   getMapOutline,
   getGridLines,
+  toPolygonPoints,
 } from '@/game/map.js'
 
-const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel'])
+const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause', 'build-here'])
+const props = defineProps({
+  buildMode: { type: String, default: null }
+})
 
 const CAMERA_SPEED = 600
 const EDGE_SIZE = 16
@@ -73,6 +91,18 @@ const map = computed(() => store.getters['game/getMap'])
 const projected = computed(() => getProjectedSize(map.value))
 const outline = computed(() => getMapOutline(map.value))
 const gridLines = computed(() => getGridLines(map.value))
+const waterTiles = computed(() => {
+  const tiles = []
+  const { width, height, gridSize } = map.value
+  for (let x = -width / 2; x < width / 2; x += gridSize) {
+    for (let y = -height / 2; y < height / 2; y += gridSize) {
+      if (isWater(x + gridSize/2, y + gridSize/2)) {
+        tiles.push({ x, y })
+      }
+    }
+  }
+  return tiles
+})
 const xLabel = computed(() => worldToScreen(map.value.gridSize * 4, 0, map.value.gridSize))
 const yLabel = computed(() => worldToScreen(0, map.value.gridSize * 4, map.value.gridSize))
 
@@ -89,6 +119,13 @@ const viewBox = computed(() => {
   return `${cameraX.value - width / 2} ${cameraY.value - height / 2} ${width} ${height}`
 })
 
+// При запуске сценария (и «Заново») камера встаёт на базу группы 1
+const homeView = computed(() => store.getters['game/getHomeView'])
+watch(homeView, (view) => {
+  cameraX.value = view.x
+  cameraY.value = view.y
+}, { immediate: true })
+
 // Клиентские координаты мыши → координаты внутри SVG (учитывает камеру и положение на странице)
 const toSvgPoint = (clientX, clientY) => {
   const matrix = svgRef.value?.getScreenCTM()
@@ -98,7 +135,13 @@ const toSvgPoint = (clientX, clientY) => {
 const onContextMenu = (event) => {
   const point = toSvgPoint(event.clientX, event.clientY)
   if (!point) return
-  emit('command', clampToMap(screenToWorld(point.x, point.y, map.value.gridSize), map.value))
+  // ПКМ по юниту или зданию передаёт его id как цель приказа
+  const element = event.target.closest('[data-element-id]')
+  emit('command', {
+    ...clampToMap(screenToWorld(point.x, point.y, map.value.gridSize), map.value),
+    queue: event.shiftKey,
+    targetId: element ? Number(element.dataset.elementId) : null,
+  })
 }
 
 const onWheel = (event) => {
@@ -108,6 +151,9 @@ const onWheel = (event) => {
 
 // Мышь: ЛКМ — выбор/рамка, СКМ — перетаскивание камеры, курсор у края — прокрутка
 const mouse = ref(null)
+const onMouseLeave = () => {
+  mouse.value = null
+}
 const selectionStart = ref(null)
 const selectionEnd = ref(null)
 const isSelecting = ref(false)
@@ -174,6 +220,7 @@ const onMouseUp = (event) => {
         top: Math.min(first.y, last.y),
         right: Math.max(first.x, last.x),
         bottom: Math.max(first.y, last.y),
+        additive: event.shiftKey,
       })
     }
     // Блокирует click после рамки, чтобы он не сбросил выбор
@@ -191,13 +238,19 @@ const onClickCapture = (event) => {
   suppressClick = false
 }
 
-// Клавиатура: WASD/стрелки — камера, Esc — снять выбор
+// Клавиатура: WASD/стрелки — камера, Esc — снять выбор, пробел — пауза
 const pressedKeys = new Set()
 
 const onKeyDown = (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return
   if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return
   if (event.code === 'Escape') emit('cancel')
+  // Пробел — пауза; если фокус на юните, его обработчик перехватит нажатие раньше
+  if (event.code === 'Space') {
+    if (!event.repeat) emit('toggle-pause')
+    event.preventDefault()
+    return
+  }
   if (!CAMERA_KEYS.includes(event.code)) return
   event.preventDefault()
   pressedKeys.add(event.code)
@@ -265,6 +318,18 @@ onUnmounted(() => {
   cancelAnimationFrame(animationFrame)
   clearInput()
 })
+
+const onBackgroundClick = (event) => {
+  if (props.buildMode) {
+    const point = toSvgPoint(event.clientX, event.clientY)
+    if (point) {
+      const worldPoint = screenToWorld(point.x, point.y, map.value.gridSize)
+      emit('build-here', { type: props.buildMode, x: worldPoint.x, y: worldPoint.y })
+    }
+  } else {
+    emit('background-click', event)
+  }
+}
 </script>
 
 <style scoped lang="scss">
