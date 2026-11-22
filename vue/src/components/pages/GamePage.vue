@@ -42,9 +42,9 @@
         </div>
       </div>
     </div>
-    <SelectionPanel 
-      :objects="selected" 
-      @spawn="payload => store.dispatch('game/spawn', payload)" 
+    <SelectionPanel
+      :objects="selected"
+      @spawn="payload => store.dispatch('game/spawn', payload)"
       @start-build="startBuildingMode" />
   </div>
 </template>
@@ -78,7 +78,10 @@ const waypointsById = computed(() => {
 const isSelected = (id) => store.getters['game/isSelected'](id)
 
 // Shift+клик — добавить/убрать объект из выбора; Shift+клик по фону выбор не сбрасывает
-const select = (id, event) => store.dispatch('game/select', { id, additive: Boolean(event?.shiftKey) })
+const select = (id, event) => store.dispatch('game/select', {
+  id,
+  additive: Boolean(event?.shiftKey),
+})
 const clearSelection = (event) => {
   if (event?.shiftKey) return
   buildMode.value = null // Esc и клик по фону также отменяют режим стройки

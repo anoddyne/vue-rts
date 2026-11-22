@@ -16,5 +16,10 @@ const props = defineProps({
   width: { type: Number, required: true },
 })
 
-const color = computed(() => props.health / props.maxHealth > 0.5 ? '#6fd06a' : props.health / props.maxHealth > 0.25 ? '#e0c23a' : '#d6453a')
+const color = computed(() => {
+  const ratio = props.health / props.maxHealth
+  if (ratio > 0.5) return '#6fd06a'
+  if (ratio > 0.25) return '#e0c23a'
+  return '#d6453a'
+})
 </script>

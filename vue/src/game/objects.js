@@ -8,7 +8,7 @@ export const OBJECT_KINDS = {
 // range — дистанция удара от края юнита до края цели.
 // strength — сила персонажа (добавленная характеристика).
 export const UNIT_TYPES = {
-  // Сила 3: слабый юнит 
+  // Сила 3: слабый юнит
   VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
   // Сила 12: сильный боевой юнит
   MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },

@@ -58,7 +58,9 @@ const isPathClearAhead = (from, to, unit, buildings, margin = 0) => {
 // на 1px: точка старта не проверяется, а проседание между сэмплами (≤ CLEAR_STEP / 2) не должно
 // довести реальный зазор до радиуса, иначе шаг заблокирует точный stepToward.
 export const skipPassedWaypoints = (unit, path, finalPoint, buildings) => {
-  while (path.length && isPathClearAhead(unit, path.length > 1 ? path[1] : finalPoint, unit, buildings, CLEAR_MARGIN - 1)) {
+  while (path.length) {
+    const nextPoint = path.length > 1 ? path[1] : finalPoint
+    if (!isPathClearAhead(unit, nextPoint, unit, buildings, CLEAR_MARGIN - 1)) return
     path.shift()
   }
 }
@@ -128,7 +130,9 @@ export const findPath = (unit, target, buildings, map) => {
     x: -halfWidth + (i + 0.5) * cellSize,
     y: -halfHeight + (j + 0.5) * cellSize,
   })
-  const toCell = (value, half, count) => Math.min(count - 1, Math.max(0, Math.floor((value + half) / cellSize)))
+  const toCell = (value, half, count) => {
+    return Math.min(count - 1, Math.max(0, Math.floor((value + half) / cellSize)))
+  }
 
   // Клетка занята, если в её центре юнит задевает здание (с запасом к радиусу) или стоит на воде
   const clearance = unit.type.radius + CLEAR_MARGIN
@@ -137,8 +141,9 @@ export const findPath = (unit, target, buildings, map) => {
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
       const point = cellPoint(i, j)
-      blocked[toIndex(i, j)] = ((waterBlocks && isWater(point.x, point.y))
-        || buildings.some(building => circleOverlapsBuilding(point.x, point.y, clearance, building))) ? 1 : 0
+      const isCellBlocked = (waterBlocks && isWater(point.x, point.y))
+        || buildings.some(building => circleOverlapsBuilding(point.x, point.y, clearance, building))
+      blocked[toIndex(i, j)] = isCellBlocked ? 1 : 0
     }
   }
 
@@ -192,13 +197,16 @@ export const findPath = (unit, target, buildings, map) => {
   for (let index = endIndex; index !== -1; index = cameFrom[index]) cells.push(index)
   cells.reverse()
 
-  // Узлы маршрута: точная позиция юнита → центры клеток; свободную цель заменяем точной точкой клика
+  // Узлы маршрута: точная позиция юнита → центры клеток.
+  // Свободную цель заменяем точной точкой клика.
   const nodes = cells.map((index, position) => position === 0
     ? { x: unit.x, y: unit.y }
     : cellPoint(index % cols, Math.floor(index / cols)))
   if (goalFree) {
     const lastPoint = nodes[nodes.length - 1]
-    if (isPathClear(lastPoint, target, unit, buildings)) nodes[nodes.length - 1] = { x: target.x, y: target.y }
+    if (isPathClear(lastPoint, target, unit, buildings)) {
+      nodes[nodes.length - 1] = { x: target.x, y: target.y }
+    }
   }
 
   // Сглаживание: из каждой точки прыгаем к самой дальней, до которой путь по прямой чист
@@ -206,12 +214,18 @@ export const findPath = (unit, target, buildings, map) => {
   let current = 0
   while (current < nodes.length - 1) {
     let next = nodes.length - 1
-    while (next > current + 1 && !isPathClear(nodes[current], nodes[next], unit, buildings)) next--
+    while (next > current + 1) {
+      if (isPathClear(nodes[current], nodes[next], unit, buildings)) break
+      next--
+    }
     smoothed.push(nodes[next])
     current = next
   }
 
   // Первый отрезок идёт от реальной позиции юнита — убираем точки, до которых напрямую не пройти
-  while (smoothed.length && !isPathClearAhead(unit, smoothed[0], unit, buildings)) smoothed.shift()
+  while (smoothed.length) {
+    if (isPathClearAhead(unit, smoothed[0], unit, buildings)) break
+    smoothed.shift()
+  }
   return smoothed
 }
