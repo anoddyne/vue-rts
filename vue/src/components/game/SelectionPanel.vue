@@ -17,7 +17,7 @@
         <div v-if="objects[0].type.attack">
           Атака: {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
         </div>
-                <!-- Выводим силу и скорость передвижения (только для юнитов) -->
+        <!-- Сила и скорость передвижения (только для юнитов) -->
         <div v-if="objects[0].kind === 'unit'">Сила: {{ objects[0].type.strength }}</div>
 
         <div>Позиция: {{ Math.round(objects[0].x) }}, {{ Math.round(objects[0].y) }}</div>
@@ -85,6 +85,19 @@ const counts = computed(() => props.objects.reduce((result, object) => {
 </script>
 
 <style scoped lang="scss">
+// Общий вид кнопок панели: спавн юнитов из зданий и выбор постройки
+%panel-button {
+  padding: 4px 12px;
+  border: 1px solid #66805b;
+  background: #243421;
+  color: #f0f4e7;
+  cursor: pointer;
+
+  &:hover {
+    background: #354c2e;
+  }
+}
+
 .selection-panel {
   display: flex;
   justify-content: space-between;
@@ -108,15 +121,7 @@ const counts = computed(() => props.objects.reduce((result, object) => {
     margin-top: 6px;
 
     button {
-      padding: 4px 12px;
-      border: 1px solid #66805b;
-      background: #243421;
-      color: #f0f4e7;
-      cursor: pointer;
-
-      &:hover {
-        background: #354c2e;
-      }
+      @extend %panel-button;
     }
   }
 
@@ -132,13 +137,7 @@ const counts = computed(() => props.objects.reduce((result, object) => {
     align-items: center;
 
     button {
-      padding: 4px 12px;
-      border: 1px solid #66805b;
-      background: #243421;
-      color: #f0f4e7;
-      cursor: pointer;
-
-      &:hover { background: #354c2e; }
+      @extend %panel-button;
     }
   }
 }
@@ -151,10 +150,10 @@ const counts = computed(() => props.objects.reduce((result, object) => {
   border: 1px solid #ff6b5a;
   cursor: pointer;
   border-radius: 4px;
-  
+
   // Эффект при наведении мыши
-  &:hover { 
-    background: #b0352b; 
+  &:hover {
+    background: #b0352b;
   }
 }
 </style>

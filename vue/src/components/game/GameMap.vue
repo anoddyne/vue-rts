@@ -6,7 +6,7 @@
       @click="onBackgroundClick"
       @contextmenu.prevent
       @wheel.prevent="onWheel"
-      @mouseleave="onMouseLeave"
+      @mouseleave="() => mouse = null"
   >
     <svg
         ref="svgRef"
@@ -25,8 +25,8 @@
       </desc>
 
       <polygon :points="outline" fill="#354c2e" stroke="#b9cba5" stroke-width="2" />
-      <polygon 
-        v-for="(tile, index) in waterTiles" 
+      <polygon
+        v-for="(tile, index) in waterTiles"
         :key="'water-' + index"
         :points="toPolygonPoints([
            { x: tile.x, y: tile.y },
@@ -34,8 +34,8 @@
            { x: tile.x + map.gridSize, y: tile.y + map.gridSize },
            { x: tile.x, y: tile.y + map.gridSize }
         ], map.gridSize)"
-        fill="#3b82f6" 
-        stroke="#2563eb" 
+        fill="#3b82f6"
+        stroke="#2563eb"
         stroke-width="1"
      />
       <line
@@ -75,7 +75,15 @@ import {
   toPolygonPoints,
 } from '@/game/map.js'
 
-const emit = defineEmits(['tick', 'command', 'background-click', 'select-area', 'cancel', 'toggle-pause', 'build-here'])
+const emit = defineEmits([
+  'tick',
+  'command',
+  'background-click',
+  'select-area',
+  'cancel',
+  'toggle-pause',
+  'build-here',
+])
 const props = defineProps({
   buildMode: { type: String, default: null }
 })
@@ -84,7 +92,10 @@ const CAMERA_SPEED = 600
 const EDGE_SIZE = 16
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 2
-const CAMERA_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']
+const CAMERA_KEYS = [
+  'KeyW', 'KeyA', 'KeyS', 'KeyD',
+  'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
+]
 
 const store = useStore()
 const map = computed(() => store.getters['game/getMap'])
@@ -146,14 +157,12 @@ const onContextMenu = (event) => {
 
 const onWheel = (event) => {
   if (event.deltaY === 0) return
-  zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom.value * (event.deltaY < 0 ? 1.1 : 1 / 1.1)))
+  const direction = event.deltaY < 0 ? 1.1 : 1 / 1.1
+  zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom.value * direction))
 }
 
 // Мышь: ЛКМ — выбор/рамка, СКМ — перетаскивание камеры, курсор у края — прокрутка
 const mouse = ref(null)
-const onMouseLeave = () => {
-  mouse.value = null
-}
 const selectionStart = ref(null)
 const selectionEnd = ref(null)
 const isSelecting = ref(false)
@@ -174,7 +183,12 @@ const selectionStyle = computed(() => {
 
 const getLocalPoint = (event) => {
   const rect = svgRef.value.parentElement.getBoundingClientRect()
-  return { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height }
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+    width: rect.width,
+    height: rect.height,
+  }
 }
 
 const onMouseDown = (event) => {
@@ -191,11 +205,15 @@ const onMouseDown = (event) => {
 
 const onMouseMove = (event) => {
   const local = getLocalPoint(event)
-  const isInside = local.x >= 0 && local.y >= 0 && local.x <= local.width && local.y <= local.height
+  const isInside = local.x >= 0 && local.y >= 0
+    && local.x <= local.width && local.y <= local.height
   mouse.value = isInside ? local : null
 
   if (dragLast) {
-    moveCamera(-(event.clientX - dragLast.x) / zoom.value, -(event.clientY - dragLast.y) / zoom.value)
+    moveCamera(
+      -(event.clientX - dragLast.x) / zoom.value,
+      -(event.clientY - dragLast.y) / zoom.value,
+    )
     dragLast = { x: event.clientX, y: event.clientY }
   }
 
@@ -243,7 +261,8 @@ const pressedKeys = new Set()
 
 const onKeyDown = (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return
-  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return
+  if (event.target instanceof HTMLElement
+    && event.target.closest('input, textarea, select, [contenteditable]')) return
   if (event.code === 'Escape') emit('cancel')
   // Пробел — пауза; если фокус на юните, его обработчик перехватит нажатие раньше
   if (event.code === 'Space') {
@@ -266,8 +285,10 @@ const clearInput = () => {
 }
 
 const moveCamera = (dx, dy) => {
-  cameraX.value = Math.max(-projected.value.width / 2, Math.min(projected.value.width / 2, cameraX.value + dx))
-  cameraY.value = Math.max(-projected.value.height / 2, Math.min(projected.value.height / 2, cameraY.value + dy))
+  const halfWidth = projected.value.width / 2
+  const halfHeight = projected.value.height / 2
+  cameraX.value = Math.max(-halfWidth, Math.min(halfWidth, cameraX.value + dx))
+  cameraY.value = Math.max(-halfHeight, Math.min(halfHeight, cameraY.value + dy))
 }
 
 const getCameraDirection = () => {

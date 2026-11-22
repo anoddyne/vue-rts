@@ -1,7 +1,15 @@
 // События отдельно от элементов карты. Кадр — это применение текущих событий к элементам.
 // Цепочка одного юнита делит linkId: событие с меньшим order выполняется первым,
 // после его завершения в том же кадре начинается следующее.
-import { isBuilding, isUnit, MOVE_RESULT, stepToward, getContact, getAttackPosition, strike } from './objects.js'
+import {
+  isBuilding,
+  isUnit,
+  MOVE_RESULT,
+  stepToward,
+  getContact,
+  getAttackPosition,
+  strike,
+} from './objects.js'
 import { findPath, isPathClear, skipPassedWaypoints } from './pathfinding.js'
 
 export const EVENT_TYPES = {
@@ -95,7 +103,9 @@ const attackFrame = (unit, target, event, time, buildings, map) => {
 }
 
 // Следующий кадр. Координаты элементов обновляются на месте.
-// Законченное событие снимается с очереди, остаток времени кадра уходит следующему в той же связи.
+// Законченное событие снимается с очереди, остаток времени кадра
+// уходит следующему в той же связи.
+// Если шаг всё же упирается в здание, снимается вся оставшаяся цепочка этого юнита.
 // Юнит идёт по точкам обходного маршрута события; если шаг всё же упирается в здание,
 // снимается вся оставшаяся цепочка этого юнита.
 export const nextFrame = (elements, events, delta, map) => {
