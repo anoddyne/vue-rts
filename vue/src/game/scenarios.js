@@ -1,7 +1,7 @@
 // Подготовленные сценарии: расстановка зданий и юнитов по группам.
 // Объект задается строкой [kind, TYPE_KEY, x, y, group]. Запуск сценария пересоздаёт состояние модуля game.
 import { createMap, worldToScreen } from './map.js'
-import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding } from './objects.js'
+import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding, createWoodSource } from './objects.js'
 
 export const SCENARIOS = [
   {
@@ -124,6 +124,15 @@ export const createScenarioState = (id) => {
     ? createUnit(UNIT_TYPES[type], x, y, group)
     : createBuilding(BUILDING_TYPES[type], x, y, group))
   const groups = new Set(elements.map(element => element.group))
+  const economy = elements.filter(element => element.type === BUILDING_TYPES.TOWN_CENTER)
+    .flatMap(({ x, y, group }) => {
+      const direction = x < 0 ? 1 : -1
+      const side = y < 0 ? -1 : 1
+      return [
+        createBuilding(BUILDING_TYPES.WAREHOUSE, x + direction * 200, y + side * 165, group),
+        createWoodSource(x + direction * 330, y + side * 165),
+      ]
+    })
   return {
     map: createMap(3200, 2400, 40),
     scenarioId: scenario.id,
@@ -131,7 +140,7 @@ export const createScenarioState = (id) => {
     startedGroups: groups.size,
     // Точка экрана, на которую камера встаёт при запуске сценария — центр базы группы 1
     homeView: createHomeView(elements, 40),
-    elements,
+    elements: [...elements, ...economy],
     events: [],
     selectedIds: [],
     paused: false,

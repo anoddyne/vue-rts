@@ -4,6 +4,7 @@ import {
   BUILDING_TYPES,
   isUnit,
   isBuilding,
+  isResource,
   getDepth,
   createUnit,
   createBuilding,
@@ -41,12 +42,13 @@ const MUTATIONS = {
 }
 
 const FORMATION_SPACING = 24
+const isDepleted = element => isResource(element) ? element.stock <= 0 : element.health <= 0
 
 // Конец игры: у одной группы остались все объекты, а остальные группы исчезли.
 // Проверяется после каждого кадра — сработает, как только в игре появятся смерти объектов.
 const detectGameOver = (state) => {
   if (state.startedGroups < 2 || state.gameOver) return null
-  const alive = new Set(state.elements.map(element => element.group))
+  const alive = new Set(state.elements.filter(element => !isResource(element)).map(element => element.group))
   if (alive.size > 1) return null
   return { winner: alive.size ? [...alive][0] : null }
 }
@@ -73,7 +75,13 @@ export default {
       .filter(event => event.elementId === elementId)
       .sort((a, b) => a.order - b.order)
       .map(event => {
-        if (event.type !== EVENT_TYPES.ATTACK) return event
+        if (event.type === EVENT_TYPES.MOVE) return event
+        if (event.type === EVENT_TYPES.GATHER) {
+          const destination = state.elements.find(element => element.id === (event.warehouseId ?? event.targetId))
+          if (!destination) return null
+          const point = event.path?.at(-1) ?? destination
+          return { id: event.id, x: point.x, y: point.y, path: event.path }
+        }
         const target = state.elements.find(element => element.id === event.targetId)
         if (!target) return null
         return { id: event.id, x: target.x, y: target.y, path: event.path?.length ? [...event.path, target] : null, attack: true }
@@ -109,9 +117,8 @@ export default {
         if (isUnit(element)) element.attackCooldown = Math.max(0, element.attackCooldown - delta)
       })
       state.events = nextFrame(state.elements, state.events, delta, state.map)
-      // Объекты с нулевым здоровьем убираются с карты и из выбора
-      if (state.elements.some(element => element.health <= 0)) {
-        state.elements = state.elements.filter(element => element.health > 0)
+      if (state.elements.some(isDepleted)) {
+        state.elements = state.elements.filter(element => !isDepleted(element))
         state.selectedIds = state.selectedIds.filter(id => state.elements.some(element => element.id === id))
       }
       state.gameOver = detectGameOver(state) ?? state.gameOver
@@ -198,6 +205,12 @@ export default {
       if (!selected.length) return
 
       const target = targetId !== null && store.state.elements.find(element => element.id === targetId)
+      if (target && isResource(target)) {
+        const orders = selected.filter(unit => unit.type.carryCapacity)
+          .map(unit => ({ type: EVENT_TYPES.GATHER, elementId: unit.id, targetId }))
+        store.commit(MUTATIONS.SET_EVENTS, issueOrders(store.state.events, orders, queue))
+        return
+      }
       const attackers = target ? selected.filter(unit => unit.group !== target.group) : []
       const units = selected.filter(unit => !attackers.includes(unit))
       const attackOrders = attackers.map(unit => ({ elementId: unit.id, targetId: target.id }))

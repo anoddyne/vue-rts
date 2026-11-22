@@ -11,10 +11,12 @@ import {
   strike,
 } from './objects.js'
 import { findPath, isPathClear, skipPassedWaypoints } from './pathfinding.js'
+import { gatherFrame } from './gathering.js'
 
 export const EVENT_TYPES = {
   MOVE: 'move',
   ATTACK: 'attack',
+  GATHER: 'gather',
 }
 
 let nextEventId = 1
@@ -49,7 +51,6 @@ const chainOf = (events, elementId) => events
   .sort((a, b) => a.order - b.order)
 
 // queue: дописать приказ в текущую цепочку. Иначе прежние события этих юнитов заменяются.
-// Приказ с targetId — атака цели, иначе — движение в точку (x, y).
 export const issueOrders = (events, orders, queue) => {
   const elementIds = new Set(orders.map(order => order.elementId))
   const next = queue ? events.slice() : events.filter(event => !elementIds.has(event.elementId))
@@ -58,6 +59,13 @@ export const issueOrders = (events, orders, queue) => {
     const chain = chainOf(next, order.elementId)
     const linkId = chain.length ? chain[0].linkId : nextLinkId++
     const orderIndex = chain.reduce((max, event) => Math.max(max, event.order), -1) + 1
+    if (order.type === EVENT_TYPES.GATHER) {
+      next.push({
+        id: nextEventId++, type: EVENT_TYPES.GATHER, elementId: order.elementId,
+        linkId, order: orderIndex, targetId: order.targetId, path: null, gatherTime: 0,
+      })
+      return
+    }
     next.push(order.targetId
       ? createAttackEvent(order.elementId, linkId, orderIndex, order.targetId)
       : createMoveEvent(order.elementId, linkId, orderIndex, order.x, order.y))
@@ -119,7 +127,7 @@ export const nextFrame = (elements, events, delta, map) => {
   elementIds.forEach(elementId => {
     const element = byId.get(elementId)
     const chain = chainOf(events, elementId)
-    if (!element || !isUnit(element)) {
+    if (!element || !isUnit(element) || element.health <= 0) {
       chain.forEach(event => removeIds.add(event.id))
       return
     }
@@ -127,6 +135,13 @@ export const nextFrame = (elements, events, delta, map) => {
     let time = delta
     for (let index = 0; index < chain.length && time > 0; index++) {
       const event = chain[index]
+      if (event.type === EVENT_TYPES.GATHER) {
+        const remaining = gatherFrame(element, byId.get(event.targetId), event, time, buildings, map)
+        if (remaining === 0) return
+        removeIds.add(event.id)
+        if (remaining !== null) time = remaining
+        continue
+      }
       if (event.type === EVENT_TYPES.ATTACK) {
         const target = byId.get(event.targetId)
         // Цель уничтожена — атака закончена, время кадра уходит следующему событию

@@ -2,6 +2,7 @@
 export const OBJECT_KINDS = {
   UNIT: 'unit',
   BUILDING: 'building',
+  RESOURCE: 'resource',
 }
 
 // attack: damage — сколько здоровья снимает удар, interval — секунд между ударами (скорость атаки),
@@ -9,7 +10,7 @@ export const OBJECT_KINDS = {
 // strength — сила персонажа (добавленная характеристика).
 export const UNIT_TYPES = {
   // Сила 3: слабый юнит
-  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
+  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, carryCapacity: 10, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
   // Сила 12: сильный боевой юнит
   MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
   // Сила 7: средний юнит
@@ -23,7 +24,10 @@ export const BUILDING_TYPES = {
   HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678', spawns: [] },
   BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
   TOWER: { name: 'Башня', size: 160, height: 40, maxHealth: 800, color: '#7a8a9c', spawns: [] },
+  WAREHOUSE: { name: 'Склад', size: 80, height: 28, maxHealth: 550, color: '#887552', spawns: [], storesResources: true },
 }
+
+export const WOOD_SOURCE = { name: 'Дерево', radius: 18, stock: 25 }
 
 // Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
 // Первые группы берут цвета из списка, следующие — оттенок по номеру группы.
@@ -45,6 +49,7 @@ export const createUnit = (type, x, y, group = 1) => ({
   // Сколько секунд осталось до следующего удара
   attackCooldown: 0,
   canSwim: type.canSwim || false,
+  ...(type.carryCapacity && { cargo: 0 }),
 })
 
 export const createBuilding = (type, x, y, group = 1) => ({
@@ -55,10 +60,21 @@ export const createBuilding = (type, x, y, group = 1) => ({
   y,
   group,
   health: type.maxHealth,
+  ...(type.storesResources && { storedWood: 0 }),
+})
+
+export const createWoodSource = (x, y) => ({
+  id: nextId++,
+  kind: OBJECT_KINDS.RESOURCE,
+  type: WOOD_SOURCE,
+  x,
+  y,
+  stock: WOOD_SOURCE.stock,
 })
 
 export const isUnit = (object) => object.kind === OBJECT_KINDS.UNIT
 export const isBuilding = (object) => object.kind === OBJECT_KINDS.BUILDING
+export const isResource = (object) => object.kind === OBJECT_KINDS.RESOURCE
 
 // Задевает ли круг радиуса radius с центром (x, y) квадратное основание здания
 export const circleOverlapsBuilding = (x, y, radius, building) => {
