@@ -1,14 +1,23 @@
 import { clampToMap, worldToScreen, screenToWorld } from '@/game/map.js'
-import { UNIT_TYPES, BUILDING_TYPES, isUnit, isBuilding, getDepth, createUnit, createBuilding, findSpawnPoint } from '@/game/objects.js'
+import {
+  UNIT_TYPES,
+  BUILDING_TYPES,
+  isUnit,
+  isBuilding,
+  getDepth,
+  createUnit,
+  createBuilding,
+  findSpawnPoint,
+  circleOverlapsBuilding,
+} from '@/game/objects.js'
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
-import { circleOverlapsBuilding } from '@/game/objects.js'
 import { isWater } from '@/game/terrain.js'
 
 // Проверка, занята ли точка другим объектом (коллизия)
 const isOccupied = (x, y, radius, elements, ignoreId = null) => {
   // Защита от ошибок: если elements не массив, ничего не проверяем
-   if (!Array.isArray(elements)) return false;
+  if (!Array.isArray(elements)) return false
 
   return elements.some(el => {
     if (el.id === ignoreId) return false
@@ -148,11 +157,11 @@ export default {
     build: (store, { buildingType, x, y }) => {
       if (store.state.gameOver) return
       const { map } = store.state
-      
+
       const type = BUILDING_TYPES[buildingType]
       if (!type) return
-  
-      // Проверка на воду 
+
+      // Проверка на воду
       const halfSize = type.size / 2
       const corners = [
         { x: x - halfSize, y: y - halfSize },
@@ -174,12 +183,12 @@ export default {
         console.warn("Место занято!")
         return
       }
-      
+
       const newBuilding = createBuilding(type, x, y, 1) // 1 - это группа игрока
       store.commit(MUTATIONS.ADD_ELEMENT, newBuilding)
 
     },
-  
+
     // Приказ выбранным юнитам по ПКМ. queue — дописать в цепочку (Shift), иначе заменить текущие события.
     // targetId — ПКМ по объекту: юниты других групп атакуют его, юниты его группы идут в точку (x, y).
     commandSelected: (store, { x, y, queue = false, targetId = null }) => {
@@ -209,9 +218,9 @@ export default {
         const point = clampToMap(formationPoint, map)
 
         // 1. Проверка на воду
-        const canSwim = unit.canSwim || false 
+        const canSwim = unit.canSwim || false
         if (isWater(point.x, point.y) && !canSwim) {
-          return null 
+          return null
         }
 
         // 2. Проверка на наложение: точка занята другим объектом — сдвигаем по диагонали,
