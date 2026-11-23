@@ -13,6 +13,7 @@ import {
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 import { isWater } from '@/game/terrain.js'
+import { relationKey, DEFAULT_RELATION } from '@/game/nations.js'
 
 // Проверка, занята ли точка другим объектом (коллизия)
 const isOccupied = (x, y, radius, elements, ignoreId = null) => {
@@ -80,6 +81,12 @@ export default {
       })
       .filter(Boolean),
     isPaused: (state) => state.paused,
+    // Нации сценария и отношения между ними (по умолчанию все пары — «враги»)
+    getNations: (state) => state.nations,
+    getNation: (state) => (id) => state.nations.find(nation => nation.id === id),
+    getRelation: (state) => (a, b) => a === b
+      ? 'ally'
+      : (state.relations[relationKey(a, b)] ?? DEFAULT_RELATION),
     getGameOver: (state) => state.gameOver,
     getScenarioId: (state) => state.scenarioId,
     // Куда встаёт камера при запуске сценария
@@ -198,7 +205,10 @@ export default {
       if (!selected.length) return
 
       const target = targetId !== null && store.state.elements.find(element => element.id === targetId)
-      const attackers = target ? selected.filter(unit => unit.group !== target.group) : []
+      // Атакуют только юниты, чья нация враждебна нации цели (по умолчанию враждебны все)
+      const attackers = target
+        ? selected.filter(unit => store.getters.getRelation(unit.group, target.group) === 'enemy')
+        : []
       const units = selected.filter(unit => !attackers.includes(unit))
       const attackOrders = attackers.map(unit => ({ elementId: unit.id, targetId: target.id }))
 

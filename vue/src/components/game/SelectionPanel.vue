@@ -11,7 +11,7 @@
       </template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
-        <div>{{ getGroupName(objects[0].group) }}</div>
+        <div>{{ nationName }}</div>
         <div>Здоровье: {{ objects[0].health }} / {{ objects[0].type.maxHealth }}</div>
         <div v-if="objects[0].type.speed">Скорость: {{ objects[0].type.speed }}</div>
         <div v-if="objects[0].type.attack">
@@ -59,10 +59,17 @@
 
 <script setup>
 import { computed } from 'vue'
-import { UNIT_TYPES, getGroupName } from '@/game/objects.js'
+import { UNIT_TYPES } from '@/game/objects.js'
 
 const props = defineProps({
   objects: { type: Array, required: true },
+  nations: { type: Array, default: () => [] },
+})
+
+// Имя нации выбранного объекта
+const nationName = computed(() => {
+  const nation = props.nations.find(nation => nation.id === props.objects[0]?.group)
+  return nation ? nation.name : null
 })
 
 const emit = defineEmits(['spawn', 'start-build'])
