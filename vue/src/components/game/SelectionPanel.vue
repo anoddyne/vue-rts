@@ -8,6 +8,19 @@
           <button @mousedown.prevent @click="emit('start-build', 'HOUSE')">Дом (1x1)</button>
           <button @mousedown.prevent @click="emit('start-build', 'TOWER')">Башня (2x2)</button>
         </div>
+        <div class="selection-panel__diplomacy">
+          <span>Дипломатия:</span>
+          <div
+              v-for="nation in otherNations"
+              :key="nation.id"
+              class="selection-panel__nation"
+          >
+            <span>{{ nation.name }} - {{ relationLabel(nation.id) }}</span>
+            <button @mousedown.prevent @click="diplomacyAction(nation.id)">
+              {{ relationWith(nation.id) === 'ally' ? 'Объявить врагом' : 'Предложить союз' }}
+            </button>
+          </div>
+        </div>
       </template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
@@ -60,6 +73,7 @@
 <script setup>
 import { computed } from 'vue'
 import { UNIT_TYPES } from '@/game/objects.js'
+import { PLAYER_NATION_ID } from '@/game/nations.js'
 
 const props = defineProps({
   objects: { type: Array, required: true },
@@ -71,6 +85,17 @@ const nationName = computed(() => {
   const nation = props.nations.find(nation => nation.id === props.objects[0]?.group)
   return nation ? nation.name : null
 })
+
+// Дипломатия: все нации, кроме нации игрока, их отношения и действия политики
+const otherNations = computed(() => props.nations.filter(nation => nation.id !== PLAYER_NATION_ID))
+const relationWith = (nationId) => store.getters['game/getRelation'](PLAYER_NATION_ID, nationId)
+const relationLabel = (nationId) => relationWith(nationId) === 'ally' ? 'Союзник' : 'Враг'
+const diplomacyAction = (nationId) => {
+  store.dispatch(
+    relationWith(nationId) === 'ally' ? 'game/declareEnemy' : 'game/proposeAlliance',
+    nationId,
+  )
+}
 
 const emit = defineEmits(['spawn', 'start-build'])
 // Импортируем хранилище (Store), чтобы иметь доступ к экшенам игры
@@ -142,6 +167,27 @@ const counts = computed(() => props.objects.reduce((result, object) => {
     gap: 8px;
     margin-top: 10px;
     align-items: center;
+
+    button {
+      @extend %panel-button;
+    }
+  }
+
+  &__diplomacy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+
+    .selection-panel__nation {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+
+      span:first-child {
+        min-width: 130px;
+      }
+    }
 
     button {
       @extend %panel-button;

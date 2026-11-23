@@ -4,6 +4,9 @@ import { getGroupColor } from './objects.js'
 
 export const DEFAULT_RELATION = 'enemy'
 
+// Нация игрока: первая нация сценария
+export const PLAYER_NATION_ID = 1
+
 // Ключ пары наций: порядок аргументов не важен
 export const relationKey = (a, b) => [a, b].sort((x, y) => x - y).join(':')
 

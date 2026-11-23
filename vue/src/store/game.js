@@ -13,7 +13,7 @@ import {
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 import { isWater } from '@/game/terrain.js'
-import { relationKey, DEFAULT_RELATION } from '@/game/nations.js'
+import { PLAYER_NATION_ID, relationKey, DEFAULT_RELATION } from '@/game/nations.js'
 
 // Проверка, занята ли точка другим объектом (коллизия)
 const isOccupied = (x, y, radius, elements, ignoreId = null) => {
@@ -37,6 +37,7 @@ const MUTATIONS = {
   ADD_ELEMENT: 'ADD_ELEMENT',
   SET_PAUSED: 'SET_PAUSED',
   SET_GAME_OVER: 'SET_GAME_OVER',
+  SET_RELATION: 'SET_RELATION',
   START: 'START',
   TICK: 'TICK',
 }
@@ -87,6 +88,10 @@ export default {
     getRelation: (state) => (a, b) => a === b
       ? 'ally'
       : (state.relations[relationKey(a, b)] ?? DEFAULT_RELATION),
+    // Военная сила нации: сумма силы её юнитов
+    getNationStrength: (state) => (group) => state.elements
+      .filter(element => element.kind === 'unit' && element.group === group)
+      .reduce((sum, unit) => sum + (unit.type.strength ?? 0), 0),
     getGameOver: (state) => state.gameOver,
     getScenarioId: (state) => state.scenarioId,
     // Куда встаёт камера при запуске сценария
@@ -110,6 +115,9 @@ export default {
     },
     [MUTATIONS.START]: (state, fresh) => {
       Object.assign(state, fresh)
+    },
+    [MUTATIONS.SET_RELATION]: (state, { a, b, relation }) => {
+      state.relations[relationKey(a, b)] = relation
     },
     [MUTATIONS.TICK]: (state, delta) => {
       state.elements.forEach(element => {
@@ -258,6 +266,26 @@ export default {
     },
     // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
     // Тип юнита должен быть в списке spawns здания; если рядом нет свободного места, юнит не создаётся.
+    // Политика: предложить союз нации. Сильная нация отказывает слабому просителю,
+    // если у неё нет врага сильнее неё (тогда союз спасает положение) — тогда союз заключается.
+    proposeAlliance: (store, nationId) => {
+      if (nationId === PLAYER_NATION_ID || store.state.gameOver) return false
+      const player = PLAYER_NATION_ID
+      const strengthOf = (group) => store.getters.getNationStrength(group)
+      if (strengthOf(nationId) > strengthOf(player)) {
+        const threatened = store.state.nations.some(nation => nation.id !== nationId && nation.id !== player
+          && store.getters.getRelation(nationId, nation.id) === 'enemy'
+          && store.getters.getNationStrength(nation.id) > strengthOf(nationId))
+        if (!threatened) return false
+      }
+      store.commit(MUTATIONS.SET_RELATION, { a: player, b: nationId, relation: 'ally' })
+      return true
+    },
+    // Политика: объявить нацию врагом — без запроса, сразу
+    declareEnemy: (store, nationId) => {
+      if (nationId === PLAYER_NATION_ID || store.state.gameOver) return
+      store.commit(MUTATIONS.SET_RELATION, { a: PLAYER_NATION_ID, b: nationId, relation: 'enemy' })
+    },
     spawn: (store, { buildingId, unitType }) => {
       if (store.state.gameOver) return
       const building = store.state.elements.find(element => element.id === buildingId)
