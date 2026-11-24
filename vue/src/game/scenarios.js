@@ -14,6 +14,7 @@ export const SCENARIOS = [
       { id: 2, name: 'Орда' },
       { id: 3, name: 'Клан' },
     ],
+    victory: { mode: 'destruction' },
     objects: [
       ['building', 'TOWN_CENTER', -600, -400, 1],
       ['building', 'HOUSE', -800, -200, 1],
@@ -49,6 +50,7 @@ export const SCENARIOS = [
       { id: 1, name: 'Империя' },
       { id: 2, name: 'Орда' },
     ],
+    victory: { mode: 'extermination' },
     objects: [
       // Группа 1 — верхний угол
       ['building', 'TOWN_CENTER', -1150, -950, 1],
@@ -77,6 +79,7 @@ export const SCENARIOS = [
       { id: 2, name: 'Королевство' },
       { id: 3, name: 'Клан' },
     ],
+    victory: { mode: 'extermination' },
     objects: [
       // Группа 1 — верхний угол
       ['building', 'TOWN_CENTER', -1150, -950, 1],
@@ -128,6 +131,7 @@ SCENARIOS.push({
   name: 'Шесть наций',
   description: 'Шесть наций по кругу, у каждой база и отряд.',
   nations: Array.from({ length: 6 }, (_, index) => ({ id: index + 1, name: `Нация ${index + 1}` })),
+  victory: { mode: 'economy', goal: 500 },
   objects: createCircleOfGroups(6, 900),
 })
 
@@ -151,6 +155,10 @@ export const createScenarioState = (id) => {
     // Нации и отношения между ними: по умолчанию каждая пара — «враги»
     nations,
     relations: createRelations(nations.map(nation => nation.id)),
+    // Режим победы сценария (destruction/extermination/economy) и порог золота для economy
+    victory: scenario.victory ?? { mode: 'destruction' },
+    // Накопленное золото наций (наполняется доставкой ресурсов)
+    gold: {},
     // Точка экрана, на которую камера встаёт при запуске сценария — центр базы группы 1
     homeView: createHomeView(elements, 40),
     elements,
