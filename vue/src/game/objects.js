@@ -27,7 +27,12 @@ export const BUILDING_TYPES = {
   WAREHOUSE: { name: 'Склад', size: 80, height: 28, maxHealth: 550, color: '#887552', spawns: [], storesResources: true },
 }
 
-export const WOOD_SOURCE = { name: 'Дерево', radius: 18, stock: 25 }
+export const RESOURCE_TYPES = {
+  wood: { name: 'Лес', material: 'Древесина', radius: 24, stock: 25, color: '#477c3f' },
+  stone: { name: 'Каменоломня', material: 'Камень', radius: 20, stock: 25, color: '#9ea6ae' },
+  ore: { name: 'Рудное месторождение', material: 'Руда', radius: 20, stock: 25, color: '#b57255' },
+  gold: { name: 'Золотое месторождение', material: 'Золото', radius: 20, stock: 25, color: '#e5b747' },
+}
 
 // Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
 // Первые группы берут цвета из списка, следующие — оттенок по номеру группы.
@@ -49,7 +54,7 @@ export const createUnit = (type, x, y, group = 1) => ({
   // Сколько секунд осталось до следующего удара
   attackCooldown: 0,
   canSwim: type.canSwim || false,
-  ...(type.carryCapacity && { cargo: 0 }),
+  ...(type.carryCapacity && { cargo: 0, cargoType: null }),
 })
 
 export const createBuilding = (type, x, y, group = 1) => ({
@@ -60,16 +65,19 @@ export const createBuilding = (type, x, y, group = 1) => ({
   y,
   group,
   health: type.maxHealth,
-  ...(type.storesResources && { storedWood: 0 }),
+  ...(type.storesResources && {
+    storedResources: Object.fromEntries(Object.keys(RESOURCE_TYPES).map(key => [key, 0])),
+  }),
 })
 
-export const createWoodSource = (x, y) => ({
+export const createResource = (resourceType, x, y) => ({
   id: nextId++,
   kind: OBJECT_KINDS.RESOURCE,
-  type: WOOD_SOURCE,
+  resourceType,
+  type: RESOURCE_TYPES[resourceType],
   x,
   y,
-  stock: WOOD_SOURCE.stock,
+  stock: RESOURCE_TYPES[resourceType].stock,
 })
 
 export const isUnit = (object) => object.kind === OBJECT_KINDS.UNIT

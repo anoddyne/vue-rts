@@ -49,7 +49,8 @@ export const gatherFrame = (unit, source, event, time, buildings, map) => {
   if (!capacity) return null
 
   while (time > 0) {
-    if (unit.cargo === capacity || !source?.stock || event.warehouseId) {
+    const cargoTypeChanged = unit.cargo > 0 && unit.cargoType !== source?.resourceType
+    if (unit.cargo >= capacity || !source?.stock || event.warehouseId || cargoTypeChanged) {
       if (!unit.cargo) return time
       const warehouses = buildings.filter(building =>
         building.type.storesResources && building.group === unit.group && building.health > 0)
@@ -61,8 +62,9 @@ export const gatherFrame = (unit, source, event, time, buildings, map) => {
 
       time = approach(unit, warehouse, event, time, buildings, map)
       if (time === null || time === 0) return time
-      warehouse.storedWood += unit.cargo
+      warehouse.storedResources[unit.cargoType] += unit.cargo
       unit.cargo = 0
+      unit.cargoType = null
       event.warehouseId = null
       event.gatherTime = 0
       continue
@@ -75,6 +77,7 @@ export const gatherFrame = (unit, source, event, time, buildings, map) => {
     event.gatherTime += spent
     if (event.gatherTime >= GATHER_INTERVAL - 1e-9) {
       source.stock--
+      unit.cargoType = source.resourceType
       unit.cargo++
       event.gatherTime = 0
     }

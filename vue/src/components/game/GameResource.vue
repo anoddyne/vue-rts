@@ -10,9 +10,16 @@
       @keydown.enter.stop.prevent="emit('select')"
       @keydown.space.stop.prevent="emit('select')"
   >
-    <ellipse cx="0" cy="0" rx="18" ry="8" fill="#263c24" :stroke="selected ? '#ffe08a' : 'none'" />
-    <rect x="-3" y="-25" width="6" height="25" fill="#725034" />
-    <path d="M -19,-10 L 0,-46 L 19,-10 Z" fill="#477c3f" stroke="#263c24" />
+    <ellipse cx="0" cy="0" rx="24" ry="9" fill="#263c24" :stroke="selected ? '#ffe08a' : 'none'" />
+    <g v-if="resource.resourceType === 'wood'">
+      <path d="M -10,1 V -16 M 10,0 V -17" stroke="#725034" stroke-width="5" />
+      <path d="M -22,-8 L -10,-35 L 2,-8 Z M -3,-9 L 10,-41 L 23,-9 Z" :fill="resource.type.color" stroke="#263c24" />
+    </g>
+    <g v-else stroke="#353832" stroke-linejoin="round">
+      <path d="M -22,0 L -17,-15 L -8,-20 L 2,-11 L 7,1 Z" :fill="resource.type.color" />
+      <path d="M -5,4 L 1,-18 L 13,-26 L 22,-15 L 23,0 Z" :fill="resource.type.color" />
+      <path d="M 1,-18 L 9,-12 L 22,-15 M 9,-12 L 7,3" fill="none" />
+    </g>
   </g>
 </template>
 
