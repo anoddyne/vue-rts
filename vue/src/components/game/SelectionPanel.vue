@@ -29,7 +29,9 @@
         </div>
         <div v-if="objects[0].type.speed">Скорость: {{ objects[0].type.speed }}</div>
         <div v-if="objects[0].type.attack">
-          Атака: {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
+          {{ objects[0].type.attack.mode === 'ranged' ? 'Дальний бой' : 'Ближний бой' }}:
+          {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
+          · Дальность: {{ objects[0].type.attack.range }}
         </div>
         <!-- Сила и скорость передвижения (только для юнитов) -->
         <div v-if="objects[0].kind === 'unit'">Сила: {{ objects[0].type.strength }}</div>
