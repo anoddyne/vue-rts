@@ -18,6 +18,13 @@
             :selected="isSelected(object.id)"
             @select="event => select(object.id, event)"
         />
+        <GameResource
+            v-else-if="isResource(object)"
+            :resource="object"
+            :grid-size="map.gridSize"
+            :selected="isSelected(object.id)"
+            @select="event => select(object.id, event)"
+        />
         <GameUnit
             v-else
             :unit="object"
@@ -56,8 +63,9 @@ import { useStore } from 'vuex'
 import GameMap from '@/components/game/GameMap.vue'
 import GameUnit from '@/components/game/GameUnit.vue'
 import GameBuilding from '@/components/game/GameBuilding.vue'
+import GameResource from '@/components/game/GameResource.vue'
 import SelectionPanel from '@/components/game/SelectionPanel.vue'
-import { isBuilding, getGroupName } from '@/game/objects.js'
+import { isBuilding, isResource, getGroupName } from '@/game/objects.js'
 import { getScenario } from '@/game/scenarios.js'
 
 const route = useRoute()

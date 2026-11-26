@@ -2,6 +2,7 @@
 export const OBJECT_KINDS = {
   UNIT: 'unit',
   BUILDING: 'building',
+  RESOURCE: 'resource',
 }
 
 // attack: damage — сколько здоровья снимает удар, interval — секунд между ударами (скорость атаки),
@@ -9,11 +10,21 @@ export const OBJECT_KINDS = {
 // strength — сила персонажа (добавленная характеристика).
 export const UNIT_TYPES = {
   // Сила 3: слабый юнит
-  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, color: '#ffd376', attack: { damage: 3, interval: 2, range: 6 } },
+  VILLAGER: { appearance: 'villager', name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, carryCapacity: 10, color: '#ffd376', attack: { mode: 'melee', damage: 3, interval: 2, range: 6 } },
   // Сила 12: сильный боевой юнит
-  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { damage: 6, interval: 1.5, range: 6 } },
+  MILITIA: { appearance: 'militia', name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { mode: 'melee', damage: 6, interval: 1.5, range: 6 } },
   // Сила 7: средний юнит
-  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', canSwim: true, attack: { damage: 4, interval: 1, range: 6 } },
+  SCOUT: { appearance: 'scout', name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', canSwim: true, attack: { mode: 'melee', damage: 4, interval: 1, range: 6 } },
+  ARCHER: {
+    appearance: 'archer',
+    name: 'Лучник',
+    speed: 90,
+    radius: 10,
+    maxHealth: 30,
+    strength: 5,
+    color: '#a2cf73',
+    attack: { mode: 'ranged', damage: 4, interval: 1.5, range: 140 },
+  },
 }
 
 // size — сторона квадратного основания в мировых единицах (на экране — ромб), height — высота стен в пикселях,
@@ -21,8 +32,16 @@ export const UNIT_TYPES = {
 export const BUILDING_TYPES = {
   TOWN_CENTER: { name: 'Городской центр', size: 160, height: 48, maxHealth: 2400, color: '#b08a5a', spawns: ['VILLAGER'] },
   HOUSE: { name: 'Дом', size: 80, height: 28, maxHealth: 550, color: '#c9a678', spawns: [] },
-  BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT'] },
+  BARRACKS: { name: 'Казармы', size: 120, height: 36, maxHealth: 1200, color: '#9c7b55', spawns: ['MILITIA', 'SCOUT', 'ARCHER'] },
   TOWER: { name: 'Башня', size: 160, height: 40, maxHealth: 800, color: '#7a8a9c', spawns: [] },
+  WAREHOUSE: { name: 'Склад', size: 80, height: 28, maxHealth: 550, color: '#887552', spawns: [], storesResources: true },
+}
+
+export const RESOURCE_TYPES = {
+  wood: { name: 'Лес', material: 'Древесина', radius: 24, stock: 25, color: '#477c3f' },
+  stone: { name: 'Каменоломня', material: 'Камень', radius: 20, stock: 25, color: '#9ea6ae' },
+  ore: { name: 'Рудное месторождение', material: 'Руда', radius: 20, stock: 25, color: '#b57255' },
+  gold: { name: 'Золотое месторождение', material: 'Золото', radius: 20, stock: 25, color: '#e5b747' },
 }
 
 // Группы игроков: число групп не ограничено. Цвет группы — обводка юнита и флаг на здании.
@@ -45,6 +64,8 @@ export const createUnit = (type, x, y, group = 1) => ({
   // Сколько секунд осталось до следующего удара
   attackCooldown: 0,
   canSwim: type.canSwim || false,
+  facing: 1,
+  ...(type.carryCapacity && { cargo: 0, cargoType: null }),
 })
 
 export const createBuilding = (type, x, y, group = 1) => ({
@@ -55,10 +76,24 @@ export const createBuilding = (type, x, y, group = 1) => ({
   y,
   group,
   health: type.maxHealth,
+  ...(type.storesResources && {
+    storedResources: Object.fromEntries(Object.keys(RESOURCE_TYPES).map(key => [key, 0])),
+  }),
+})
+
+export const createResource = (resourceType, x, y) => ({
+  id: nextId++,
+  kind: OBJECT_KINDS.RESOURCE,
+  resourceType,
+  type: RESOURCE_TYPES[resourceType],
+  x,
+  y,
+  stock: RESOURCE_TYPES[resourceType].stock,
 })
 
 export const isUnit = (object) => object.kind === OBJECT_KINDS.UNIT
 export const isBuilding = (object) => object.kind === OBJECT_KINDS.BUILDING
+export const isResource = (object) => object.kind === OBJECT_KINDS.RESOURCE
 
 // Задевает ли круг радиуса radius с центром (x, y) квадратное основание здания
 export const circleOverlapsBuilding = (x, y, radius, building) => {
@@ -112,11 +147,12 @@ export const getContact = (unit, target) => {
   return { x: target.x, y: target.y, gap: Math.hypot(unit.x - target.x, unit.y - target.y) - unit.type.radius - target.type.radius }
 }
 
-// Точка, в которой юнит встаёт для удара: на линии к цели, с зазором в половину дальности атаки
+// Точка подхода к цели с запасом в несколько единиц до предела дальности атаки
 export const getAttackPosition = (unit, contact) => {
   const distance = Math.hypot(contact.x - unit.x, contact.y - unit.y)
   if (distance === 0) return { x: unit.x, y: unit.y }
-  const approach = contact.gap - unit.type.attack.range / 2
+  const { range } = unit.type.attack
+  const approach = contact.gap - range + Math.min(range / 2, 4)
   return {
     x: unit.x + (contact.x - unit.x) / distance * approach,
     y: unit.y + (contact.y - unit.y) / distance * approach,
@@ -134,6 +170,12 @@ export const MOVE_RESULT = {
   MOVING: 'moving',
   DONE: 'done',
   BLOCKED: 'blocked',
+}
+
+// Восемь направлений с шагом 45° от положительной оси X.
+export const faceDirection = (unit, dx, dy) => {
+  if (dx === 0 && dy === 0) return
+  unit.facing = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8
 }
 
 // Шаг юнита к точке на speed * delta мировых единиц.
@@ -154,6 +196,7 @@ export const stepToward = (unit, target, delta, buildings) => {
     return { status: MOVE_RESULT.BLOCKED, remaining: 0 }
   }
 
+  faceDirection(unit, next.x - unit.x, next.y - unit.y)
   unit.x = next.x
   unit.y = next.y
   if (!reached) return { status: MOVE_RESULT.MOVING, remaining: 0 }

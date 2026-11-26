@@ -7,15 +7,31 @@
           <span>Строительство:</span>
           <button @mousedown.prevent @click="emit('start-build', 'HOUSE')">Дом (1x1)</button>
           <button @mousedown.prevent @click="emit('start-build', 'TOWER')">Башня (2x2)</button>
+          <button @mousedown.prevent @click="emit('start-build', 'WAREHOUSE')">Склад</button>
         </div>
+      </template>
+      <template v-else-if="objects.length === 1 && isResource(objects[0])">
+        <b>{{ objects[0].type.name }}</b>
+        <div>{{ objects[0].type.material }}: {{ objects[0].stock }} ед.</div>
       </template>
       <template v-else-if="objects.length === 1">
         <b>{{ objects[0].type.name }}</b>
         <div>{{ getGroupName(objects[0].group) }}</div>
         <div>Здоровье: {{ objects[0].health }} / {{ objects[0].type.maxHealth }}</div>
+        <div v-if="objects[0].type.storesResources">
+          <div v-for="(amount, key) in objects[0].storedResources" :key="key">
+            {{ RESOURCE_TYPES[key].material }}: {{ amount }}
+          </div>
+        </div>
+        <div v-if="objects[0].type.carryCapacity">
+          Груз: {{ objects[0].cargo }} / {{ objects[0].type.carryCapacity }}
+          <span v-if="objects[0].cargoType">({{ RESOURCE_TYPES[objects[0].cargoType].material }})</span>
+        </div>
         <div v-if="objects[0].type.speed">Скорость: {{ objects[0].type.speed }}</div>
         <div v-if="objects[0].type.attack">
-          Атака: {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
+          {{ objects[0].type.attack.mode === 'ranged' ? 'Дальний бой' : 'Ближний бой' }}:
+          {{ objects[0].type.attack.damage }} урона раз в {{ objects[0].type.attack.interval }} с
+          · Дальность: {{ objects[0].type.attack.range }}
         </div>
         <!-- Сила и скорость передвижения (только для юнитов) -->
         <div v-if="objects[0].kind === 'unit'">Сила: {{ objects[0].type.strength }}</div>
@@ -51,6 +67,7 @@
       ЛКМ — выбрать, Shift+ЛКМ — добавить/убрать из выбора<br>
       Рамка — выбрать группу, Shift+рамка — добавить группу к выбору<br>
       ПКМ — идти (всем выбранным), ПКМ по чужой группе — атаковать, Shift+ПКМ — в очередь, Esc — снять выбор<br>
+      ПКМ по источнику ресурса выбранным крестьянином — начать добычу<br>
       Пробел — пауза. Камера: WASD / стрелки / курсор у края / зажатое колесо, масштаб — колесо мыши<br>
       <RouterLink :to="{ name: $routes.INDEX }">В меню</RouterLink>
     </div>
@@ -59,7 +76,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { UNIT_TYPES, getGroupName } from '@/game/objects.js'
+import { RESOURCE_TYPES, UNIT_TYPES, getGroupName, isResource } from '@/game/objects.js'
 
 const props = defineProps({
   objects: { type: Array, required: true },

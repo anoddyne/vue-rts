@@ -1,7 +1,7 @@
 // Подготовленные сценарии: расстановка зданий и юнитов по группам.
 // Объект задается строкой [kind, TYPE_KEY, x, y, group]. Запуск сценария пересоздаёт состояние модуля game.
 import { createMap, worldToScreen } from './map.js'
-import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding } from './objects.js'
+import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding, createResource } from './objects.js'
 
 export const SCENARIOS = [
   {
@@ -16,7 +16,7 @@ export const SCENARIOS = [
       ['unit', 'VILLAGER', -400, -350, 1],
       ['unit', 'VILLAGER', -350, -400, 1],
       ['unit', 'MILITIA', -500, -200, 1],
-      ['unit', 'MILITIA', -450, -10, 1],
+      ['unit', 'ARCHER', -450, -10, 1],
       ['unit', 'SCOUT', -500, -600, 1],
       // Группа 2 — справа
       ['building', 'TOWN_CENTER', 700, -300, 2],
@@ -25,12 +25,12 @@ export const SCENARIOS = [
       ['unit', 'VILLAGER', 520, -260, 2],
       ['unit', 'MILITIA', 560, -80, 2],
       ['unit', 'MILITIA', 560, -20, 2],
-      ['unit', 'MILITIA', 600, 40, 2],
+      ['unit', 'ARCHER', 600, 40, 2],
       // Группа 3 — снизу
       ['building', 'HOUSE', -200, 600, 3],
       ['building', 'BARRACKS', 80, 640, 3],
       ['unit', 'MILITIA', -60, 480, 3],
-      ['unit', 'MILITIA', 0, 480, 3],
+      ['unit', 'ARCHER', 0, 480, 3],
       ['unit', 'SCOUT', 60, 480, 3],
       ['unit', 'SCOUT', 120, 480, 3],
     ],
@@ -46,7 +46,7 @@ export const SCENARIOS = [
       ['building', 'HOUSE', -970, -1130, 1],
       ['unit', 'VILLAGER', -950, -850, 1],
       ['unit', 'MILITIA', -890, -810, 1],
-      ['unit', 'MILITIA', -1000, -800, 1],
+      ['unit', 'ARCHER', -1000, -800, 1],
       ['unit', 'SCOUT', -830, -900, 1],
       // Группа 2 — нижний угол
       ['building', 'TOWN_CENTER', 1150, 950, 2],
@@ -54,7 +54,7 @@ export const SCENARIOS = [
       ['building', 'HOUSE', 970, 1130, 2],
       ['unit', 'VILLAGER', 950, 850, 2],
       ['unit', 'MILITIA', 890, 810, 2],
-      ['unit', 'MILITIA', 1000, 800, 2],
+      ['unit', 'ARCHER', 1000, 800, 2],
       ['unit', 'SCOUT', 830, 900, 2],
     ],
   },
@@ -68,18 +68,21 @@ export const SCENARIOS = [
       ['building', 'HOUSE', -1330, -790, 1],
       ['unit', 'VILLAGER', -900, -930, 1],
       ['unit', 'MILITIA', -960, -870, 1],
+      ['unit', 'ARCHER', -920, -830, 1],
       ['unit', 'SCOUT', -840, -1010, 1],
       // Группа 2 — левый угол
       ['building', 'TOWN_CENTER', -1150, 950, 2],
       ['building', 'HOUSE', -1330, 790, 2],
       ['unit', 'VILLAGER', -900, 930, 2],
       ['unit', 'MILITIA', -960, 870, 2],
+      ['unit', 'ARCHER', -920, 830, 2],
       ['unit', 'SCOUT', -840, 1010, 2],
       // Группа 3 — нижний угол
       ['building', 'TOWN_CENTER', 1150, 950, 3],
       ['building', 'HOUSE', 1330, 790, 3],
       ['unit', 'VILLAGER', 900, 930, 3],
       ['unit', 'MILITIA', 960, 870, 3],
+      ['unit', 'ARCHER', 920, 830, 3],
       ['unit', 'SCOUT', 840, 1010, 3],
     ],
   },
@@ -103,7 +106,7 @@ const createCircleOfGroups = (count, radius) => Array.from({ length: count }, (_
     ['unit', 'VILLAGER', ...at(140, 0), group],
     ['unit', 'MILITIA', ...at(140, 40), group],
     ['unit', 'MILITIA', ...at(180, -40), group],
-    ['unit', 'MILITIA', ...at(180, 0), group],
+    ['unit', 'ARCHER', ...at(180, 0), group],
     ['unit', 'SCOUT', ...at(180, 40), group],
   ]
 }).flat()
@@ -124,6 +127,18 @@ export const createScenarioState = (id) => {
     ? createUnit(UNIT_TYPES[type], x, y, group)
     : createBuilding(BUILDING_TYPES[type], x, y, group))
   const groups = new Set(elements.map(element => element.group))
+  const economy = elements.filter(element => element.type === BUILDING_TYPES.TOWN_CENTER)
+    .flatMap(({ x, y, group }) => {
+      const direction = x < 0 ? 1 : -1
+      const side = y < 0 ? -1 : 1
+      return [
+        createBuilding(BUILDING_TYPES.WAREHOUSE, x + direction * 200, y + side * 165, group),
+        createResource('wood', x + direction * 330, y + side * 130),
+        createResource('stone', x + direction * 330, y + side * 200),
+        createResource('ore', x + direction * 400, y + side * 130),
+        createResource('gold', x + direction * 400, y + side * 200),
+      ]
+    })
   return {
     map: createMap(3200, 2400, 40),
     scenarioId: scenario.id,
@@ -131,7 +146,7 @@ export const createScenarioState = (id) => {
     startedGroups: groups.size,
     // Точка экрана, на которую камера встаёт при запуске сценария — центр базы группы 1
     homeView: createHomeView(elements, 40),
-    elements,
+    elements: [...elements, ...economy],
     events: [],
     selectedIds: [],
     paused: false,
