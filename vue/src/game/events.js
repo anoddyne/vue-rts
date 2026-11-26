@@ -9,6 +9,7 @@ import {
   getContact,
   getAttackPosition,
   strike,
+  faceDirection,
 } from './objects.js'
 import { findPath, isPathClear, skipPassedWaypoints } from './pathfinding.js'
 import { gatherFrame } from './gathering.js'
@@ -81,6 +82,7 @@ const attackFrame = (unit, target, event, time, buildings, map) => {
   const contact = getContact(unit, target)
   if (contact.gap <= unit.type.attack.range) {
     event.path = null
+    faceDirection(unit, target.x - unit.x, target.y - unit.y)
     strike(unit, target)
     return true
   }

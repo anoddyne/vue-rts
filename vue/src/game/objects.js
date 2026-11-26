@@ -10,12 +10,13 @@ export const OBJECT_KINDS = {
 // strength — сила персонажа (добавленная характеристика).
 export const UNIT_TYPES = {
   // Сила 3: слабый юнит
-  VILLAGER: { name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, carryCapacity: 10, color: '#ffd376', attack: { mode: 'melee', damage: 3, interval: 2, range: 6 } },
+  VILLAGER: { appearance: 'villager', name: 'Крестьянин', speed: 70, radius: 9, maxHealth: 25, strength: 3, carryCapacity: 10, color: '#ffd376', attack: { mode: 'melee', damage: 3, interval: 2, range: 6 } },
   // Сила 12: сильный боевой юнит
-  MILITIA: { name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { mode: 'melee', damage: 6, interval: 1.5, range: 6 } },
+  MILITIA: { appearance: 'militia', name: 'Ополченец', speed: 95, radius: 10, maxHealth: 40, strength: 12, color: '#e07b5a', attack: { mode: 'melee', damage: 6, interval: 1.5, range: 6 } },
   // Сила 7: средний юнит
-  SCOUT: { name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', canSwim: true, attack: { mode: 'melee', damage: 4, interval: 1, range: 6 } },
+  SCOUT: { appearance: 'scout', name: 'Разведчик', speed: 160, radius: 12, maxHealth: 45, strength: 7, color: '#8ab4e8', canSwim: true, attack: { mode: 'melee', damage: 4, interval: 1, range: 6 } },
   ARCHER: {
+    appearance: 'archer',
     name: 'Лучник',
     speed: 90,
     radius: 10,
@@ -63,6 +64,7 @@ export const createUnit = (type, x, y, group = 1) => ({
   // Сколько секунд осталось до следующего удара
   attackCooldown: 0,
   canSwim: type.canSwim || false,
+  facing: 1,
   ...(type.carryCapacity && { cargo: 0, cargoType: null }),
 })
 
@@ -170,6 +172,12 @@ export const MOVE_RESULT = {
   BLOCKED: 'blocked',
 }
 
+// Восемь направлений с шагом 45° от положительной оси X.
+export const faceDirection = (unit, dx, dy) => {
+  if (dx === 0 && dy === 0) return
+  unit.facing = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8
+}
+
 // Шаг юнита к точке на speed * delta мировых единиц.
 // Координаты меняются на месте. Если шаг заходит в здание, юнит остаётся где был.
 export const stepToward = (unit, target, delta, buildings) => {
@@ -188,6 +196,7 @@ export const stepToward = (unit, target, delta, buildings) => {
     return { status: MOVE_RESULT.BLOCKED, remaining: 0 }
   }
 
+  faceDirection(unit, next.x - unit.x, next.y - unit.y)
   unit.x = next.x
   unit.y = next.y
   if (!reached) return { status: MOVE_RESULT.MOVING, remaining: 0 }
