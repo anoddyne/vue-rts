@@ -34,7 +34,7 @@
     </button>
     <div v-if="gameOver" class="game-page__gameover">
       <div class="game-page__gameover-card">
-        <h2>{{ gameOver.winner ? `Победила ${getGroupName(gameOver.winner)}` : 'Ничья' }}</h2>
+        <h2>{{ gameOver.winner ? `Победила ${nationNameOf(gameOver.winner)}` : 'Ничья' }}</h2>
         <p>На карте остались объекты только одной группы.</p>
         <div class="game-page__gameover-actions">
           <button type="button" @click="restart">Заново</button>
@@ -44,6 +44,7 @@
     </div>
     <SelectionPanel
       :objects="selected"
+      :nations="nations"
       @spawn="payload => store.dispatch('game/spawn', payload)"
       @start-build="startBuildingMode" />
   </div>
@@ -57,7 +58,7 @@ import GameMap from '@/components/game/GameMap.vue'
 import GameUnit from '@/components/game/GameUnit.vue'
 import GameBuilding from '@/components/game/GameBuilding.vue'
 import SelectionPanel from '@/components/game/SelectionPanel.vue'
-import { isBuilding, getGroupName } from '@/game/objects.js'
+import { isBuilding } from '@/game/objects.js'
 import { getScenario } from '@/game/scenarios.js'
 
 const route = useRoute()
@@ -67,6 +68,7 @@ const objects = computed(() => store.getters['game/getDrawOrder'])
 const selected = computed(() => store.getters['game/getSelected'])
 const paused = computed(() => store.getters['game/isPaused'])
 const gameOver = computed(() => store.getters['game/getGameOver'])
+const nations = computed(() => store.getters['game/getNations'])
 const scenarioId = computed(() => store.getters['game/getScenarioId'])
 const waypointsById = computed(() => {
   const points = {}
@@ -88,6 +90,9 @@ const clearSelection = (event) => {
   store.dispatch('game/clearSelection')
 }
 const togglePause = () => store.dispatch('game/togglePause')
+
+// Имя нации по её идентификатору
+const nationNameOf = (id) => store.getters['game/getNation'](id)?.name ?? `Группа ${id}`
 
 const buildMode = ref(null)
 

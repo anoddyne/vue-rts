@@ -2,12 +2,19 @@
 // Объект задается строкой [kind, TYPE_KEY, x, y, group]. Запуск сценария пересоздаёт состояние модуля game.
 import { createMap, worldToScreen } from './map.js'
 import { UNIT_TYPES, BUILDING_TYPES, createUnit, createBuilding } from './objects.js'
+import { createNation, createRelations } from './nations.js'
 
 export const SCENARIOS = [
   {
     id: 'sandbox',
     name: 'Песочница',
-    description: 'Своя база и две вражеские группы рядом.',
+    description: 'Своя база и две вражеские нации рядом.',
+    nations: [
+      { id: 1, name: 'Империя' },
+      { id: 2, name: 'Орда' },
+      { id: 3, name: 'Клан' },
+    ],
+    victory: { mode: 'destruction' },
     objects: [
       ['building', 'TOWN_CENTER', -600, -400, 1],
       ['building', 'HOUSE', -800, -200, 1],
@@ -38,7 +45,12 @@ export const SCENARIOS = [
   {
     id: 'duel',
     name: 'Дуэль',
-    description: 'Две группы в противоположных углах карты.',
+    description: 'Две нации в противоположных углах карты.',
+    nations: [
+      { id: 1, name: 'Империя' },
+      { id: 2, name: 'Орда' },
+    ],
+    victory: { mode: 'extermination' },
     objects: [
       // Группа 1 — верхний угол
       ['building', 'TOWN_CENTER', -1150, -950, 1],
@@ -60,8 +72,14 @@ export const SCENARIOS = [
   },
   {
     id: 'threeway',
-    name: 'Три группы',
-    description: 'Три группы у трёх углов ромба карты.',
+    name: 'Три нации',
+    description: 'Три нации у трёх углов ромба карты.',
+    nations: [
+      { id: 1, name: 'Империя' },
+      { id: 2, name: 'Королевство' },
+      { id: 3, name: 'Клан' },
+    ],
+    victory: { mode: 'extermination' },
     objects: [
       // Группа 1 — верхний угол
       ['building', 'TOWN_CENTER', -1150, -950, 1],
@@ -110,8 +128,10 @@ const createCircleOfGroups = (count, radius) => Array.from({ length: count }, (_
 
 SCENARIOS.push({
   id: 'sixway',
-  name: 'Шесть групп',
-  description: 'Шесть групп по кругу, у каждой база и отряд.',
+  name: 'Шесть наций',
+  description: 'Шесть наций по кругу, у каждой база и отряд.',
+  nations: Array.from({ length: 6 }, (_, index) => ({ id: index + 1, name: `Нация ${index + 1}` })),
+  victory: { mode: 'economy', goal: 500 },
   objects: createCircleOfGroups(6, 900),
 })
 
@@ -124,11 +144,21 @@ export const createScenarioState = (id) => {
     ? createUnit(UNIT_TYPES[type], x, y, group)
     : createBuilding(BUILDING_TYPES[type], x, y, group))
   const groups = new Set(elements.map(element => element.group))
+  // Нации: объявленные в сценарии, либо выведенные из групп на карте
+  const nations = (scenario.nations?.length ? scenario.nations : [...groups].map(id => ({ id, name: `Нация ${id}` })))
+    .map(nation => createNation(nation.id, nation.name))
   return {
     map: createMap(3200, 2400, 40),
     scenarioId: scenario.id,
     // Сколько групп было на карте при запуске; конец игры проверяется только если их было несколько
     startedGroups: groups.size,
+    // Нации и отношения между ними: по умолчанию каждая пара — «враги»
+    nations,
+    relations: createRelations(nations.map(nation => nation.id)),
+    // Режим победы сценария (destruction/extermination/economy) и порог золота для economy
+    victory: scenario.victory ?? { mode: 'destruction' },
+    // Накопленное золото наций (наполняется доставкой ресурсов)
+    gold: {},
     // Точка экрана, на которую камера встаёт при запуске сценария — центр базы группы 1
     homeView: createHomeView(elements, 40),
     elements,

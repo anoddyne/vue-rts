@@ -13,6 +13,7 @@ import {
 import { EVENT_TYPES, issueOrders, nextFrame } from '@/game/events.js'
 import { createScenarioState, getScenario } from '@/game/scenarios.js'
 import { isWater } from '@/game/terrain.js'
+import { PLAYER_NATION_ID, relationKey, DEFAULT_RELATION } from '@/game/nations.js'
 
 // Проверка, занята ли точка другим объектом (коллизия)
 const isOccupied = (x, y, radius, elements, ignoreId = null) => {
@@ -36,19 +37,58 @@ const MUTATIONS = {
   ADD_ELEMENT: 'ADD_ELEMENT',
   SET_PAUSED: 'SET_PAUSED',
   SET_GAME_OVER: 'SET_GAME_OVER',
+  SET_RELATION: 'SET_RELATION',
+  ADD_GOLD: 'ADD_GOLD',
   START: 'START',
   TICK: 'TICK',
 }
 
 const FORMATION_SPACING = 24
 
-// Конец игры: у одной группы остались все объекты, а остальные группы исчезли.
-// Проверяется после каждого кадра — сработает, как только в игре появятся смерти объектов.
+// Число юнитов нации
+const nationUnitCount = (state, group) => state.elements
+  .filter(element => element.kind === 'unit' && element.group === group).length
+
+// Финал игры по режиму победы сценария (state.victory):
+// - destruction (по умолчанию): осталась одна нация — все вражеские персонажи и здания уничтожены
+// - extermination: у всех вражеских наций не осталось персонажей; поражение — у нации игрока
+//   не осталось юнитов (побеждает враг с наибольшим отрядом)
+// - economy: нация игрока накопила goal золота
 const detectGameOver = (state) => {
-  if (state.startedGroups < 2 || state.gameOver) return null
-  const alive = new Set(state.elements.map(element => element.group))
-  if (alive.size > 1) return null
-  return { winner: alive.size ? [...alive][0] : null }
+  if (state.gameOver) return null
+  const mode = state.victory?.mode ?? 'destruction'
+
+  if (mode === 'economy') {
+    return (state.gold[PLAYER_NATION_ID] ?? 0) >= (state.victory?.goal ?? Infinity)
+      ? { winner: PLAYER_NATION_ID }
+      : null
+  }
+
+  if (state.startedGroups < 2) return null
+
+  const nationIds = state.nations.map(nation => nation.id)
+  const hasUnits = (group) => nationUnitCount(state, group) > 0
+  const hasAnything = (group) => state.elements.some(element => element.group === group)
+  const alive = nationIds.filter(hasAnything)
+
+  // Разрушение: осталась одна нация — она и победила
+  if (mode === 'destruction') {
+    if (alive.length <= 1) return { winner: alive[0] ?? null }
+    return null
+  }
+
+  // Уничтожение: у всех вражеских наций не осталось персонажей
+  const enemies = nationIds.filter(id => id !== PLAYER_NATION_ID
+    && (state.relations[relationKey(PLAYER_NATION_ID, id)] ?? DEFAULT_RELATION) === 'enemy')
+  if (enemies.length && enemies.every(id => !hasUnits(id))) return { winner: PLAYER_NATION_ID }
+
+  // Поражение: у нации игрока не осталось юнитов — побеждает враг с наибольшим отрядом
+  if (!hasUnits(PLAYER_NATION_ID)) {
+    const survivors = enemies.filter(hasUnits)
+    const strongest = survivors.sort((a, b) => nationUnitCount(state, b) - nationUnitCount(state, a))[0]
+    return { winner: strongest ?? null }
+  }
+  return null
 }
 
 export default {
@@ -61,7 +101,6 @@ export default {
     getElements: (state) => state.elements,
     getEvents: (state) => state.events,
     getUnits: (state) => state.elements.filter(isUnit),
-    getBuildings: (state) => state.elements.filter(isBuilding),
     getBuildings: (state) => state.elements.filter(isBuilding),
     // Порядок отрисовки для изометрии: дальние объекты раньше, ближние поверх
     getDrawOrder: (state) => [...state.elements].sort((a, b) => getDepth(a) - getDepth(b)),
@@ -80,6 +119,16 @@ export default {
       })
       .filter(Boolean),
     isPaused: (state) => state.paused,
+    // Нации сценария и отношения между ними (по умолчанию все пары — «враги»)
+    getNations: (state) => state.nations,
+    getNation: (state) => (id) => state.nations.find(nation => nation.id === id),
+    getRelation: (state) => (a, b) => a === b
+      ? 'ally'
+      : (state.relations[relationKey(a, b)] ?? DEFAULT_RELATION),
+    // Военная сила нации: сумма силы её юнитов
+    getNationStrength: (state) => (group) => state.elements
+      .filter(element => element.kind === 'unit' && element.group === group)
+      .reduce((sum, unit) => sum + (unit.type.strength ?? 0), 0),
     getGameOver: (state) => state.gameOver,
     getScenarioId: (state) => state.scenarioId,
     // Куда встаёт камера при запуске сценария
@@ -103,6 +152,12 @@ export default {
     },
     [MUTATIONS.START]: (state, fresh) => {
       Object.assign(state, fresh)
+    },
+    [MUTATIONS.SET_RELATION]: (state, { a, b, relation }) => {
+      state.relations[relationKey(a, b)] = relation
+    },
+    [MUTATIONS.ADD_GOLD]: (state, { nationId, amount }) => {
+      state.gold[nationId] = (state.gold[nationId] ?? 0) + amount
     },
     [MUTATIONS.TICK]: (state, delta) => {
       state.elements.forEach(element => {
@@ -198,7 +253,10 @@ export default {
       if (!selected.length) return
 
       const target = targetId !== null && store.state.elements.find(element => element.id === targetId)
-      const attackers = target ? selected.filter(unit => unit.group !== target.group) : []
+      // Атакуют только юниты, чья нация враждебна нации цели (по умолчанию враждебны все)
+      const attackers = target
+        ? selected.filter(unit => store.getters.getRelation(unit.group, target.group) === 'enemy')
+        : []
       const units = selected.filter(unit => !attackers.includes(unit))
       const attackOrders = attackers.map(unit => ({ elementId: unit.id, targetId: target.id }))
 
@@ -248,6 +306,26 @@ export default {
     },
     // Мгновенное создание юнита рядом со зданием. Юнит получает группу здания.
     // Тип юнита должен быть в списке spawns здания; если рядом нет свободного места, юнит не создаётся.
+    // Политика: предложить союз нации. Сильная нация отказывает слабому просителю,
+    // если у неё нет врага сильнее неё (тогда союз спасает положение) — тогда союз заключается.
+    proposeAlliance: (store, nationId) => {
+      if (nationId === PLAYER_NATION_ID || store.state.gameOver) return false
+      const player = PLAYER_NATION_ID
+      const strengthOf = (group) => store.getters.getNationStrength(group)
+      if (strengthOf(nationId) > strengthOf(player)) {
+        const threatened = store.state.nations.some(nation => nation.id !== nationId && nation.id !== player
+          && store.getters.getRelation(nationId, nation.id) === 'enemy'
+          && store.getters.getNationStrength(nation.id) > strengthOf(nationId))
+        if (!threatened) return false
+      }
+      store.commit(MUTATIONS.SET_RELATION, { a: player, b: nationId, relation: 'ally' })
+      return true
+    },
+    // Политика: объявить нацию врагом — без запроса, сразу
+    declareEnemy: (store, nationId) => {
+      if (nationId === PLAYER_NATION_ID || store.state.gameOver) return
+      store.commit(MUTATIONS.SET_RELATION, { a: PLAYER_NATION_ID, b: nationId, relation: 'enemy' })
+    },
     spawn: (store, { buildingId, unitType }) => {
       if (store.state.gameOver) return
       const building = store.state.elements.find(element => element.id === buildingId)
